@@ -26,18 +26,10 @@ powershell -File scripts/build_desktop.ps1
 ```
 
 Output: `output/desktop/RyzaChat-Setup-<version>.exe` (NSIS).
-Standard install/uninstall: the installer creates Start-Menu/desktop shortcuts
-and an entry in "Apps & features"; uninstalling removes the program but keeps
-save data in `%AppData%\RyzaChat\ryza-web-storage.json` (settings, conversations,
-quests) — delete that folder to wipe everything, or use Settings →
-"抹除全部本地数据" inside the app.
-
-## Privacy notes (what ships)
-
-- `config/providers.json` is **not** part of the package (it lives outside
-  `web/` and is gitignored); API keys are entered in Settings and stay in
-  the local user profile.
-- No analytics, no crash reporting, no official backend calls.
+The installer registers Start Menu / desktop shortcuts and an Apps & features
+entry. Uninstall keeps `%AppData%\RyzaChat\ryza-web-storage.json`; wipe that
+folder or use Settings →「抹除全部本地数据」. Keys are stored in that profile,
+not in the package.
 
 ## Dev self-check
 

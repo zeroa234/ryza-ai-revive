@@ -1,123 +1,84 @@
 # Ryza Chat
 
-**Offline AI companion framework** — one static HTML/JavaScript client, plus thin Windows (Electron) and Android (WebView) shells. You bring your own OpenAI-compatible LLM and TTS keys. Nothing in this tree talks to a vendor game server.
+A local-first client for a conversational agent with a real-time 2D avatar.
 
-**离线 AI 陪伴框架**：同一套纯前端，外加 Windows / Android 薄壳。大模型和语音接口由你在设置里自填。本仓库不连接任何官方游戏服务。
+The application is a static HTML/JavaScript runtime. Thin native hosts load the same tree on Windows (Electron) and Android (WebView). Language and speech models are attached at run time through operator-configured HTTP APIs (OpenAI-compatible chat completions, plus optional TTS backends).
 
-Current version: **1.2.15** — optional installers (when you have restored local media): [Releases](https://github.com/zeroa234/ryza-ai-revive/releases)
+面向实时二维立绘的本地对话客户端。应用核为静态 HTML/JavaScript；Windows（Electron）与 Android（WebView）仅提供宿主。语言模型与语音合成在运行时接入操作者配置的 HTTP API。
 
-> Unofficial fan project. Not affiliated with Gust, Koei Tecmo, or any original publisher.  
-> 非官方同人项目，与官方及原发行方无关。
-
-License: **MIT** (this source tree). Binary character art, Spine `.skel` files, voice/BGM, and fonts are **not** in git — you supply them locally.
-
-本仓库只授权**源码**。角色贴图、骨骼二进制、语音/BGM、字体不进 git，由使用者在本地自行放入。
+Version **1.2.15**. License: [MIT](LICENSE). Releases: [GitHub Releases](https://github.com/zeroa234/ryza-ai-revive/releases).
 
 ---
 
-## What this repository is / 本仓库是什么
+## Architecture
 
-A **from-scratch client framework** for a local-first companion app:
-
-- Static `web/` kernel (no bundler required) shared by browser, desktop, and Android
-- Bring-your-own LLM (OpenAI-compatible `/v1/chat/completions`) and TTS (OpenAI-compatible, Qwen DashScope, or Fish Audio)
-- Local CORS proxy (`POST/GET /_proxy`) so the browser/WebView never holds a privileged network stack
-- Optional RPG layer (stamina, quests, inventory, daily login) stored in localStorage
-- Spine 4.2 avatar + scene camera, sit/stand, tap reactions
-- Privacy gate: packaging **aborts** if a key-shaped secret or personal machine path would ship
-- Regression tests for boot, game logic, avatar motion, memory, and expression coverage
-
-This git tree is **source code and data tables** (JSON / atlas / SVG). Raster images, audio, and `.skel` binaries are gitignored, including history.
-
-本 git 树是**源码 + 结构表**。位图、音频、`.skel` 已从仓库（含历史）排除。
-
----
-
-## Features / 功能
-
-| EN | 中文 |
+| Layer | Role |
 |---|---|
-| Talk modes (chat / story / immersive / ASMR / text) | 五种对话模式 |
-| Spine 4.2 portrait + scenes, sit/stand, tap reactions | 立绘与场景、坐站切换、点击反应 |
-| Local RPG layer (stamina, quests, inventory, daily login) | 体力 / 任务 / 背包 / 每日登录 |
-| BYO OpenAI-compatible LLM + TTS (Qwen / Fish Audio optional) | 自填 LLM 与 TTS（可选百炼 / Fish Audio） |
-| 7 UI languages | 界面七语 |
-| Frameless desktop window + Android WebView APK | 无边框桌面窗 + 安卓 WebView |
-| Privacy check on every desktop/APK build | 每次打包跑隐私闸门 |
+| `web/` | Shared client: UI, avatar renderer, local state, i18n |
+| `desktop/` | Frameless Electron host (`ryza://app/`) |
+| `android/` | `Activity` + local `AssetServer` |
+| `scripts/` | Dev server, indexes, packaging, regression tests |
+| `config/` | Version pin (`version.json`) and provider templates |
+
+The three hosts share one proxy contract, `GET/POST /_proxy`, so browser and WebView code can call operator endpoints without a CORS failure. The development server is `python scripts/serve.py` (`http://127.0.0.1:8765/`). A plain `http.server` is insufficient because it does not implement the proxy.
+
+三端共用 `/_proxy`。开发请用 `scripts/serve.py`，不要用 `python -m http.server`。
+
+Inference is not bundled. Settings require an OpenAI-compatible base URL, model identifier, and API key; TTS is optional and uses per-provider credential fields (`openai` / `qwen` / `fish`).
+
+推理与语音不随仓库分发，由设置页配置。
+
+Further module-level notes: [docs/PROJECT.md](docs/PROJECT.md).
 
 ---
 
-## Assets / 素材（不在 git 里）
+## Capabilities
 
-Playable Windows and Android builds still need media under `web/assets/`. Restore from a Release package you already have — do not commit those files:
+- Dialogue modes: chat, story, immersive, ASMR, text
+- Spine 4.2 portrait and scene graph (posture, camera, tap hit-testing)
+- Local RPG-style state: stamina, quests, inventory, daily rewards (`localStorage`)
+- Two-layer session memory, independent of adventure logs
+- Four language slots (UI, bundled voice, LLM output, TTS), seven UI locales
+- Tagged replies for scene side effects; numeric deltas in a trailing `<state>` block (no function-calling requirement)
 
-可玩包需要把素材放回 `web/assets/`，不要提交：
+---
+
+## Runtime resources
+
+Structural tables (JSON, atlas, SVG) live in `web/assets/` and are versioned with the client. Large binaries (raster, audio, skeleton) are excluded from version control and restored before a full session or packaged build:
+
+结构表随仓库版本管理；体积较大的栅格图、音频与骨骼二进制在完整运行或打包前本地恢复：
 
 ```powershell
 python scripts/restore_media.py path\to\RyzaChat-1.2.15.apk
-# or an unpacked desktop tree:
 python scripts/restore_media.py path\to\win-unpacked\resources\web
 ```
 
-JSON / atlas / SVG under `web/assets/` stay in git so modules have structure tables. PNG / JPEG / audio / `.skel` / bundled fonts do not.
+If asset files change, regenerate indexes with `python scripts/build_indexes.py`.
 
 ---
 
-## Privacy / 隐私
+## Configuration and secrets
 
-- `config/providers.json` is **gitignored**. Copy `config/providers.example.json` and fill keys locally.
-- Keys live in app settings (localStorage / `%AppData%\RyzaChat`). They are not baked into exe/APK.
-- `scripts/privacy_check.py` runs before and after packaging and **fails the build** on secret-shaped strings or personal paths.
-- No analytics, no crash reporter, no official backend.
+Copy `config/providers.example.json` to `config/providers.json` for local hydration. That file is gitignored. Packaged hosts do not embed it; keys remain in the app profile (`localStorage` or `%AppData%\RyzaChat`). `scripts/privacy_check.py` is a packaging gate: a non-zero exit aborts desktop and APK builds when a secret-shaped token or machine-local path would be included.
 
 ---
 
-## Run from source / 从源码运行
-
-Restore media first, then start the bundled static server. Spine and `fetch` cannot use `file://`. The server also provides `/_proxy` for CORS:
+## Build
 
 ```powershell
-python scripts/serve.py
-# open http://127.0.0.1:8765/
+python scripts/serve.py                          # browser
+cd desktop; npm install; npx electron .          # desktop
+powershell -File scripts/build_desktop.ps1       # NSIS installer
+powershell -File scripts/setup_android_tools.ps1 # JDK 17 + SDK (once)
+powershell -File scripts/build_apk.ps1           # APK
 ```
 
-Do not use `python -m http.server` — there is no proxy, LLM/TTS will fail CORS.
-
-### Desktop / 桌面
-
-```powershell
-cd desktop
-npm install
-npx electron .
-```
-
-Installer (after media restore):
-
-```powershell
-powershell -File scripts/build_desktop.ps1
-# -> output/desktop/RyzaChat-Setup-<version>.exe
-```
-
-### Android / 安卓
-
-```powershell
-powershell -File scripts/setup_android_tools.ps1   # one-time JDK 17 + SDK
-powershell -File scripts/build_apk.ps1
-# -> output/android/RyzaChat-<version>.apk
-```
-
-Toolchain directory: set `RYZA_ANDROID_TOOLS`, or put a path in gitignored `config/android-tools.local.txt`.
+Android toolchain path: environment `RYZA_ANDROID_TOOLS`, or gitignored `config/android-tools.local.txt`.
 
 ---
 
-## Settings / 设置里要填什么
-
-1. **LLM** — OpenAI-compatible base URL, model id, API key.
-2. **TTS** (optional) — separate fields per provider. Packaged builds do not include `providers.json`; fill model names on device.
-
----
-
-## Tests / 测试
+## Tests
 
 ```powershell
 node scripts/boot_smoke.js
@@ -128,25 +89,4 @@ node scripts/expression_coverage.js
 python scripts/privacy_check.py web
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Architecture: [docs/PROJECT.md](docs/PROJECT.md).
-
----
-
-## Layout / 目录
-
-```
-web/          static app (media under assets/ is local-only)
-desktop/      Electron shell (ryza://app)
-android/      WebView + local AssetServer
-scripts/      serve, indexes, packaging, privacy gate
-config/       version.json + providers.example.json
-docs/         public architecture notes
-```
-
----
-
-## Disclaimer / 声明
-
-This repository is original client code. It does not distribute another publisher's game binaries or paid services. Character likenesses, if you use them, come from media **you** place under `web/assets/`. Do not treat this as an official product.
-
-本仓库是从零编写的客户端框架，不通过 git 分发第三方游戏二进制或付费服务。角色形象若使用，来自你放在 `web/assets/` 的本地素材。请勿当成官方产品。
+Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -1,15 +1,7 @@
 # Security
 
-## Secrets
+Operator keys live in the local profile, not in the repository. Do not commit `config/providers.json`. `scripts/privacy_check.py` fails the desktop/APK build if a secret-shaped token or machine-local path would be packaged.
 
-- Never commit `config/providers.json` or keys from Settings.
-- Packaging runs `scripts/privacy_check.py` and fails the build if a key-shaped token or personal machine path would ship.
-- Report a leaked key by rotating it at the provider; do not open a public issue that contains the key.
+If a key is exposed, rotate it at the provider. Public issues must not contain the token. For a packaging-gate bypass, describe the path or pattern only.
 
-## Scope
-
-This project is a local client. It does not host user inference. LLM/TTS traffic goes to the endpoints **you** configure.
-
-## Contact
-
-Use GitHub Issues for non-sensitive bugs. For a packaging bypass that would embed secrets, open an issue **without** the secret and describe the path/pattern only.
+Inference traffic is sent to the endpoints configured in Settings. This repository does not operate a model host.
