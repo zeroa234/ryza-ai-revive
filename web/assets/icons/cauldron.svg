@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_1" data-name="レイヤー_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 123 123">
+  <defs>
+    <linearGradient id="cauldronGrad1" x1="-4.96" y1="78.38" x2="115.78" y2="89.91" gradientTransform="translate(0 124) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f40"/>
+      <stop offset="1" stop-color="#ffc32c"/>
+    </linearGradient>
+    <linearGradient id="cauldronGrad2" x1="-4.26" y1="71.04" x2="116.48" y2="82.56" gradientTransform="translate(0 124) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f40"/>
+      <stop offset="1" stop-color="#ffc32c"/>
+    </linearGradient>
+    <linearGradient id="cauldronGrad3" x1="-1.57" y1="42.84" x2="119.18" y2="54.36" gradientTransform="translate(0 124) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f40"/>
+      <stop offset="1" stop-color="#ffc32c"/>
+    </linearGradient>
+    <linearGradient id="cauldronGrad4" x1="74.32" y1="95.76" x2="98.87" y2="108.55" gradientTransform="translate(0 124) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e25310"/>
+      <stop offset="1" stop-color="#ffa250"/>
+    </linearGradient>
+    <linearGradient id="cauldronGrad5" x1="45.15" y1="95.82" x2="75.9" y2="104.42" gradientTransform="translate(0 124) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e25310"/>
+      <stop offset="1" stop-color="#ffa250"/>
+    </linearGradient>
+    <linearGradient id="cauldronGrad6" x1="68.69" y1="119.57" x2="77.93" y2="120.4" gradientTransform="translate(0 124) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffc28d"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#cauldronGrad1)" fill-rule="evenodd" d="M22.84,43.28c-.02-.21-.03-.42-.03-.63v.63h.03Z"/>
+  <path fill="url(#cauldronGrad2)" fill-rule="evenodd" d="M100.46,43.28h.03v-.63c0,.21-.01.42-.03.63Z"/>
+  <path fill="url(#cauldronGrad3)" fill-rule="evenodd" d="M22.81,42.65c0,.21.01.42.03.63.53,5,7.26,9.37,17.27,11.97-1.35.67-2.22,1.41-2.5,2.19-7.61-2.01-13.47-4.95-16.51-8.41-7.56,8.62-12.1,20.62-12.1,35.94,0,11.66,5.85,20.63,15.31,26.69-1.2,4.6-2.37,9.8.75,11.04,2.94,1.17,4.17-1.33,5.6-4.22.46-.92.93-1.88,1.49-2.78,8.35,3.42,18.4,5.18,29.22,5.18s21.11-1.8,29.51-5.3c.59.93,1.09,1.94,1.56,2.9,1.43,2.89,2.66,5.39,5.6,4.22,3.16-1.26,1.91-6.59.69-11.24,9.28-6.06,15-14.96,15-26.49,0-15.13-4.43-27.02-11.82-35.62-3.28,3.49-9.47,6.43-17.41,8.39-.13-.81-.9-1.58-2.17-2.28,10.48-2.58,17.59-7.05,18.13-12.19.02-.21.03-.42.03-.63v-3.15c0-8.36-17.39-15.14-38.84-15.14s-38.84,6.78-38.84,15.14v3.15Z"/>
+  <ellipse fill="#ffdacf" fill-opacity="0.8" cx="61.75" cy="37.45" rx="27.37" ry="8.73"/>
+  <circle fill="url(#cauldronGrad4)" cx="93.02" cy="18.5" r="6.5"/>
+  <circle fill="url(#cauldronGrad5)" cx="56.52" cy="25" r="7"/>
+  <circle fill="url(#cauldronGrad6)" cx="73.52" cy="4" r="4"/>
+</svg>

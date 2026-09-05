@@ -1,0 +1,23 @@
+<!-- 左下の小キラキラ (Star 23) は「小さすぎてゴミに見える」ため削除済み。
+     viewBox は削除で空いた左余白ぶんを詰めてある (旧: 0 0 71.7773 61.5)。 -->
+<svg viewBox="8 0 63.7773 61.5" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group 383">
+<ellipse id="Ellipse 118" cx="22.5586" cy="31.5" rx="14" ry="23.5" fill="url(#paint0_linear_0_106)"/>
+<path id="Subtract" d="M37.2227 8.05957C44.4879 8.9203 50.2227 19.0857 50.2227 31.5C50.2227 43.9142 44.4878 54.0786 37.2227 54.9395V55H28.2227C35.9546 55 42.2227 44.4787 42.2227 31.5C42.2227 18.5213 35.9546 8 28.2227 8H37.2227V8.05957Z" fill="url(#paint1_linear_0_106)"/>
+<path id="Star 22" d="M59.8234 3.03232C60.117 2.0991 61.4377 2.0991 61.7313 3.03232L63.3482 8.17243C63.4435 8.47521 63.6768 8.7148 63.977 8.81801L69.027 10.5543C69.9268 10.8637 69.9268 12.1363 69.027 12.4457L63.977 14.182C63.6768 14.2852 63.4435 14.5248 63.3482 14.8276L61.7313 19.9677C61.4377 20.9009 60.117 20.9009 59.8234 19.9677L58.2064 14.8276C58.1112 14.5248 57.8778 14.2852 57.5777 14.182L52.5277 12.4457C51.6279 12.1363 51.6279 10.8637 52.5277 10.5543L57.5777 8.81801C57.8778 8.7148 58.1112 8.47522 58.2064 8.17243L59.8234 3.03232Z" fill="url(#paint3_linear_0_106)"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_106" x1="20.7034" y1="39.269" x2="14.4568" y2="19.8209" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFF39C"/>
+<stop offset="1" stop-color="white"/>
+</linearGradient>
+<linearGradient id="paint1_linear_0_106" x1="37.765" y1="39.269" x2="30.2504" y2="20.8864" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFF39C"/>
+<stop offset="1" stop-color="white"/>
+</linearGradient>
+<linearGradient id="paint3_linear_0_106" x1="59.3197" y1="15.3019" x2="57.3002" y2="5.20685" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFF39C"/>
+<stop offset="1" stop-color="white"/>
+</linearGradient>
+</defs>
+</svg>

@@ -1,0 +1,5 @@
+{
+  "version": "1.2.15",
+  "code": 18,
+  "_comment": "Single source of truth for the packaged version. scripts/build_desktop.ps1 and scripts/build_apk.ps1 read this and sync desktop/package.json + android/app/build.gradle from it, so an exe and an APK can never disagree."
+}

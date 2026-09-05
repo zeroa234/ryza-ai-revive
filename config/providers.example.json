@@ -1,0 +1,23 @@
+{
+  "_note": "Copy to providers.json and fill keys. serve.py hydrates empty settings from that file. Do not commit providers.json.",
+  "llm": {
+    "provider": "openai-compatible",
+    "base_url": "https://example.invalid/v1",
+    "model": "your-model",
+    "api_key": "",
+    "temperature": 0.9
+  },
+  "tts": {
+    "provider": "openai-compatible",
+    "base_url": "https://example.invalid/v1",
+    "model_clone": "your-clone-model",
+    "model_preset": "your-preset-model",
+    "api_key": "",
+    "reference_audio": "assets/voice/ryza_wav/prologue_08.wav",
+    "format": "wav",
+    "fish_base_url": "https://fishaudio.org/api/open/v1",
+    "fish_api_key": "",
+    "fish_model": "fishaudio-s21pro-flash",
+    "fish_voice": ""
+  }
+}

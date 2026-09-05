@@ -1,0 +1,552 @@
+/* Ryza Chat — offline rebuild. Warm dusk palette, glassy HUD. */
+:root{
+  --bg:#120d14; --ink:#f6ecdf; --dim:#b9a89a;
+  --gold:#e8b45c; --ember:#ff8a4c; --leaf:#7fb069;
+  --panel:rgba(26,18,22,.88); --panel-2:rgba(40,28,32,.92);
+  --line:rgba(232,180,92,.22); --radius:14px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --bar-h:calc(env(safe-area-inset-top,0px) + 52px);
+  --bars-h:var(--bar-h);   /* single-row chrome since the 2026-09-07 UI pass */
+  --panel-h:clamp(240px,34vh,340px);  /* conversation log panel height */
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#07050a;color:var(--ink);
+  font-family:"Noto Sans JP","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;user-select:none}
+
+/* Full viewport on every shell (2026-09-03). The old 9:19.5 phone column
+   letterboxed wide desktop windows AND phones whose ratio differs — the
+   reported black bars. The Spine camera adapts the world to the canvas
+   aspect (worldW = worldH * cssW/cssH), so scene art fills any ratio; the
+   UI chrome instead scales with the window (App._fitUi sets #phone's zoom
+   on desktop; pointer/canvas math divides it back out via Avatar._cssZoom). */
+#phone{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;
+  background:var(--bg)}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none !important}
+.spacer{flex:1}
+/* Themed scrollbars everywhere — the default Windows/Chromium scrollbar is a
+   fat light-gray bar that clashes with the dark UI (and read as "broken" in
+   the chat panel). Thin, dark track, faint gold thumb, rounded. Firefox uses
+   scrollbar-color; WebKit/Blink (Android WebView, Electron) use the pseudo
+   elements. */
+*{scrollbar-width:thin;scrollbar-color:rgba(232,180,92,.4) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(232,180,92,.34);border-radius:8px;
+  border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(232,180,92,.55);background-clip:content-box}
+::-webkit-scrollbar-corner{background:transparent}
+
+/* ------------------------------------------------------------ stage */
+#stage{position:absolute;inset:0;z-index:0;background:#0b0810}
+#scene-canvas,#avatar-hit{position:absolute;inset:0;width:100%;height:100%;display:block}
+#scene-canvas{background:#0b0810}
+#avatar-hit{background:transparent}
+/* touch_ripple_overlay.dart: the tap ring that answers a poke */
+#ripple-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.tap-ripple{position:absolute;width:86px;height:86px;margin:-43px 0 0 -43px;border-radius:50%;
+  border:2px solid rgba(246,217,160,.75);
+  background:radial-gradient(circle,rgba(246,217,160,.22),rgba(246,217,160,0) 70%);
+  animation:tap-ripple .7s ease-out forwards}
+@keyframes tap-ripple{from{transform:scale(.25);opacity:.9}to{transform:scale(1.15);opacity:0}}
+#vignette{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 42%,transparent 42%,rgba(0,0,0,.55) 100%);
+  transition:box-shadow .35s,background .35s}
+#vignette.talk-glow{box-shadow:inset 0 0 80px rgba(232,180,92,.18);
+  background:radial-gradient(ellipse at 50% 42%,rgba(232,180,92,.06) 30%,rgba(0,0,0,.5) 100%)}
+#scene-curtain{position:absolute;inset:0;z-index:4;background:#0a0608;opacity:0;pointer-events:none;
+  transition:opacity .35s}
+#scene-curtain.on{opacity:.72}
+/* Bottom fade: light dusk dressing ONLY. The panel-slack camera keeps the
+   painted plate covering the visible window in BOTH panel states (collapsing
+   glides the window bottom back to the plate edge), so nothing has to be
+   hidden here anymore — a heavy scrim would just eat her thighs. */
+#stage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:20%;
+  z-index:3;pointer-events:none;
+  background:linear-gradient(0deg,rgba(8,6,10,.45),rgba(8,6,10,.14) 55%,transparent)}
+
+/* ----------------------------------------------------------- topbar
+   Official single row (2026-09-07 UI pass, from the shipped screenshots):
+   transparent bar, hamburger left, voice/text pill + » right. The old
+   two-row topbar+subbar HUD moved to the stage edges (#hud-cluster left,
+   #quick-btns right, conversation in #log-panel). Views clear it via
+   --bars-h. */
+#topbar{position:absolute;top:0;left:0;right:0;height:var(--bar-h);z-index:30;
+  display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 6px) 10px 4px;
+  background:linear-gradient(180deg,rgba(10,7,12,.72),rgba(10,7,12,.28) 70%,transparent)}
+.icon-btn{width:38px;height:38px;border-radius:11px;background:rgba(20,14,18,.6);
+  border:1px solid var(--line);font-size:17px;display:grid;place-items:center;
+  backdrop-filter:blur(8px);transition:.15s;flex:0 0 auto}
+.icon-btn.plain{background:rgba(20,14,18,.45);border-color:transparent}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn img{width:18px;height:18px;display:block;filter:invert(90%) sepia(20%) saturate(400%) hue-rotate(330deg)}
+.drawer-list li img{width:18px;height:18px;filter:invert(85%) sepia(15%) saturate(400%) hue-rotate(330deg)}
+.mode-pill img{width:16px;height:16px;display:inline-block;vertical-align:-3px;margin-right:4px;
+  filter:invert(85%) sepia(15%) saturate(400%) hue-rotate(330deg)}
+#btn-send img{width:20px;height:20px;filter:none;invert:0}
+.icon-btn.on{background:rgba(232,180,92,.2);border-color:var(--gold)}
+.hud-chip{font-size:12px;padding:4px 9px;border-radius:999px;background:rgba(20,14,18,.6);
+  border:1px solid var(--line);color:var(--dim);backdrop-filter:blur(8px);white-space:nowrap;
+  flex:0 0 auto;max-width:46vw;overflow:hidden;text-overflow:ellipsis}
+.hud-chip.shrink{flex:0 1 auto;min-width:0}
+
+/* voice/text pill — orange gradient with the speaker lottie when she talks,
+   dark with the document glyph in text mode (both states are in the shots). */
+.voice-pill{display:flex;align-items:center;gap:6px;height:34px;padding:0 14px 0 9px;
+  border-radius:999px;font-size:13.5px;font-weight:700;letter-spacing:.04em;flex:0 0 auto;
+  background:rgba(24,17,21,.8);border:1px solid var(--line);color:var(--ink);
+  backdrop-filter:blur(8px);transition:.18s}
+.voice-pill:active{transform:scale(.95)}
+.voice-pill.on{background:linear-gradient(120deg,#ff9a3d,#f5b03d);border-color:transparent;
+  color:#3a2005;box-shadow:0 3px 14px rgba(255,150,60,.35)}
+.voice-pill.off{background:rgba(24,17,21,.82);color:var(--ink)}
+
+/* right side menu — the official » drawer: label left, round icon right */
+#side-menu{position:absolute;top:calc(var(--bar-h) + 4px);right:10px;z-index:34;
+  display:none;flex-direction:column;gap:8px;padding:4px 0}
+#side-menu.open{display:flex;animation:side-in .18s ease}
+@keyframes side-in{from{opacity:0;transform:translateY(-8px) scale(.96)}to{opacity:1;transform:none}}
+.side-item{display:flex;align-items:center;justify-content:flex-end;gap:10px;
+  padding:0 2px;background:none;border:0}
+.side-item span{font-size:12.5px;color:var(--ink);text-shadow:0 1px 4px rgba(0,0,0,.85);
+  letter-spacing:.02em;white-space:nowrap}
+.side-item .round{width:44px;height:44px;border-radius:50%;flex:0 0 auto;
+  background:rgba(26,18,22,.66);border:1px solid var(--line);backdrop-filter:blur(8px);
+  display:grid;place-items:center;transition:.15s}
+.side-item:active .round{transform:scale(.92)}
+.side-item .round img{width:20px;height:20px;display:block;
+  filter:invert(88%) sepia(22%) saturate(500%) hue-rotate(330deg)}
+.side-item .round.gold{background:linear-gradient(150deg,rgba(232,180,92,.92),rgba(201,143,60,.88))}
+.side-item .round.gold img{filter:none}
+
+/* ----------------------------------------------------------- drawer */
+/* Electron frameless shell: drag the window by the HUD strip; every
+   interactive thing stays clickable. Controls injected by shell.js. */
+body.shell-electron #topbar{-webkit-app-region:drag}
+body.shell-electron #topbar button,
+body.shell-electron #topbar .hud-chip{-webkit-app-region:no-drag}
+#winctl{display:flex;gap:5px;align-items:center;flex:0 0 auto}
+.win-btn{width:32px;height:32px;font-size:13px;color:var(--dim);border-radius:9px}
+#win-pin.on{background:rgba(232,180,92,.28);border-color:var(--gold);color:var(--gold)}
+#win-close:hover{background:rgba(220,90,70,.3);color:#ffb0a0}
+
+#drawer{position:absolute;top:0;bottom:0;left:0;width:270px;max-width:82%;z-index:60;
+  background:var(--panel);backdrop-filter:blur(16px);border-right:1px solid var(--line);
+  transform:translateX(-100%);transition:transform .22s ease;display:flex;flex-direction:column}
+#drawer.open{transform:none}
+.drawer-head{display:flex;gap:11px;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 18px) 16px 14px;
+  border-bottom:1px solid var(--line)}
+.drawer-head img{width:46px;height:46px;border-radius:50%;object-fit:cover;
+  border:2px solid var(--gold);background:#2a1e24}
+.drawer-name{font-weight:700;letter-spacing:.04em}
+.drawer-sub{font-size:12px;color:var(--dim);margin-top:2px}
+.drawer-list{list-style:none;margin:8px 0 0;padding:0;flex:1;overflow:auto}
+.drawer-list li{padding:13px 18px;display:flex;gap:11px;align-items:center;cursor:pointer;
+  border-left:3px solid transparent;transition:.13s}
+.drawer-list li:hover{background:rgba(232,180,92,.07)}
+.drawer-list li.active{background:rgba(232,180,92,.13);border-left-color:var(--gold);color:var(--gold)}
+.drawer-foot{padding:11px 16px calc(14px + var(--safe-b));font-size:11px;color:#6d5f57;
+  border-top:1px solid var(--line)}
+#scrim{position:absolute;inset:0;z-index:55;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.2s}
+#scrim.on{opacity:1;pointer-events:auto}
+/* Title screen shows only the stage + title card (source title_screen). */
+body.boot #topbar,body.boot #side-menu,body.boot #hud-cluster,
+body.boot #quick-btns,body.boot #log-panel,
+body.boot #input-bar,body.boot #retry-bar,body.boot .view.active{display:none}
+/* …but the frameless window keeps its controls (pin/min/close) on top. */
+body.boot #topbar{display:flex;background:none;pointer-events:none}
+body.boot #topbar > *{display:none}
+body.boot #topbar > #winctl{display:flex;pointer-events:auto;
+  margin-left:auto;opacity:.55}
+
+/* ------------------------------------------------------------- views */
+.view{position:absolute;inset:0;z-index:20;display:none;flex-direction:column;
+  padding-top:var(--bars-h)}
+.view.active{display:flex}
+/* Talk is an overlay on the stage; every other screen is its own dark page
+   (blur_drawer_scaffold / dark_radial_background in the source) so text
+   never fights with the avatar behind it. */
+.view:not(#view-talk){background:linear-gradient(180deg,rgba(10,7,12,.93),rgba(12,8,12,.88))}
+#view-talk{background:none;pointer-events:none}
+#view-talk>*{pointer-events:auto}
+.view-head{display:flex;align-items:center;gap:10px;padding:8px 16px 12px;
+  border-bottom:1px solid var(--line);background:var(--panel)}
+.view-head h2{margin:0;font-size:17px;font-weight:700;letter-spacing:.05em}
+.head-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.mini-btn{font-size:12px;padding:6px 11px;border-radius:9px;border:1px solid var(--line);
+  background:rgba(232,180,92,.1);transition:.15s}
+.mini-btn:active{transform:scale(.96)}
+.mini-btn:hover{background:rgba(232,180,92,.2)}
+select{background:rgba(20,14,18,.9);border:1px solid var(--line);border-radius:9px;padding:6px 9px;font-size:13px;
+  max-width:46vw;overflow:hidden;text-overflow:ellipsis}
+
+/* --------------------------------------------------------- talk view */
+#mode-bar{display:flex;gap:6px;padding:8px 12px;overflow-x:auto;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch}
+#mode-bar::-webkit-scrollbar{display:none}
+.mode-pill{flex:0 0 auto;font-size:12.5px;padding:7px 13px;border-radius:999px;
+  background:rgba(26,18,22,.72);border:1px solid var(--line);color:var(--dim);
+  backdrop-filter:blur(8px);transition:.15s;white-space:nowrap}
+.mode-pill:active{transform:scale(.95)}
+.mode-pill.active{background:rgba(232,180,92,.22);border-color:var(--gold);color:var(--gold);font-weight:600}
+.mode-sep{width:1px;background:var(--line);margin:4px 3px;flex:0 0 auto}
+/* scene row inside the mode sheet (place / tod / current mode / map) */
+.sheet-scene{display:flex;gap:6px;align-items:center;padding:6px 12px 2px;flex-wrap:wrap}
+.sheet-scene .icon-btn{width:32px;height:32px}
+
+/* RPG cluster — bottom-left of the stage, above the log panel (official:
+   apple row, then a dark coin pill with a thousands separator, then Lv). */
+#hud-cluster{position:absolute;left:12px;bottom:calc(var(--panel-h) + 14px);z-index:16;
+  display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+.apple-row{display:flex;gap:2px;align-items:center;background:none;border:0;padding:2px 0}
+.apple-row img{width:26px;height:26px;display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
+.apple-row b{font-size:12px;color:var(--ink);margin-left:6px;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+.hud-line{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.money-pill{display:flex;align-items:center;gap:8px;min-width:120px;
+  background:rgba(16,11,15,.72);border:1px solid var(--line);border-radius:999px;
+  padding:5px 14px 5px 6px;backdrop-filter:blur(8px)}
+.money-pill img{width:26px;height:26px;display:block}
+.money-pill b{font-size:14px;font-weight:700;letter-spacing:.03em}
+.lv-pill{align-self:flex-start;font-size:12px;color:var(--ink);background:none;border:0;
+  padding:0 4px;text-shadow:0 1px 4px rgba(0,0,0,.95);letter-spacing:.04em}
+
+/* right round buttons — posture (dual-posture stages only), history ⇧,
+   quest flag, bag (the official circle stack over the stage edge) */
+#quick-btns{position:absolute;right:12px;bottom:calc(var(--panel-h) + 14px);z-index:16;
+  display:flex;flex-direction:column;gap:9px;align-items:flex-end;pointer-events:auto}
+.round-btn{width:46px;height:46px;border-radius:50%;background:rgba(26,18,22,.62);
+  border:1px solid var(--line);backdrop-filter:blur(8px);display:grid;place-items:center;
+  font-size:13px;font-weight:700;color:var(--ink);transition:.15s;flex:0 0 auto}
+.round-btn:active{transform:scale(.92)}
+.round-btn img{width:20px;height:20px;display:block;
+  filter:invert(88%) sepia(22%) saturate(500%) hue-rotate(330deg)}
+
+/* conversation log panel — the official bottom sheet: avatar + name + mode
+   description, the line itself, page dots. Replaces the old floating bubble
+   (which walled off the stage and faded itself away). */
+#log-panel{position:absolute;left:0;right:0;bottom:0;height:var(--panel-h);z-index:15;
+  display:flex;flex-direction:column;padding:0 16px calc(6px + var(--safe-b));
+  background:linear-gradient(180deg,rgba(10,7,12,.88),rgba(10,7,12,.94) 30%,rgba(10,7,12,.96));
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border-top:1px solid rgba(232,180,92,.16);pointer-events:auto;
+  transition:height .22s ease}
+/* Collapsed (official: ⇧ hides the conversation area down to the input row —
+   the whole stage opens up; the shipped screenshots' menu shots are this
+   state). --panel-h moves on #phone so the HUD cluster + round buttons ride
+   the panel edge. The official collapsed strip KEEPS the last line above the
+   input (see the sitting reference shot) — head/dots go, one text line stays. */
+#phone.panel-collapsed{--panel-h:calc(128px + var(--safe-b))}
+#phone.panel-collapsed #log-panel{background:linear-gradient(0deg,rgba(10,7,12,.86),transparent);
+  border-top:0;backdrop-filter:none;-webkit-backdrop-filter:none;padding-top:0}
+#phone.panel-collapsed #log-head,
+#phone.panel-collapsed #log-dots{display:none}
+#phone.panel-collapsed #log-body{padding-top:4px;overflow:hidden}
+/* Clean two-line clamp — the old max-height:2.9em left the wrapped second
+   line half-cut mid-glyph. Ellipsis after two full lines instead. */
+#phone.panel-collapsed #bubble{display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden;line-height:1.5}
+#log-head{display:flex;align-items:center;gap:10px;padding:10px 0 8px;
+  border-bottom:1px solid rgba(232,180,92,.14);flex:0 0 auto;cursor:pointer}
+#log-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;
+  border:1px solid var(--line);background:#2a1e24}
+#log-ident{min-width:0}
+#log-name{font-size:13.5px;font-weight:700;color:var(--gold);letter-spacing:.04em}
+#log-sub{font-size:11.5px;color:var(--dim);margin-top:2px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+#log-body{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;padding-top:8px}
+#bubble{max-width:min(680px,100%);line-height:1.75;font-size:16px;animation:pop .22s ease;
+  text-shadow:0 1px 3px rgba(0,0,0,.8);transition:opacity .3s ease}
+#bubble.speaking{color:#fff2dd}
+#bubble.typing{min-width:72px}
+#log-dots{display:flex;gap:8px;justify-content:center;align-items:center;height:22px;flex:0 0 auto}
+#log-dots i{width:7px;height:7px;border-radius:50%;background:rgba(246,236,223,.28);
+  cursor:pointer;transition:.15s}
+#log-dots i.on{background:var(--gold);transform:scale(1.15)}
+.dots{display:inline-flex;gap:5px;align-items:center;height:1.2em;padding:0 4px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--gold);opacity:.35;
+  animation:dot 1s ease-in-out infinite}
+.dots i:nth-child(2){animation-delay:.15s}
+.dots i:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-4px)}}
+#input-bar.spot{position:relative;z-index:40;box-shadow:0 0 0 999px rgba(0,0,0,.55),0 0 28px rgba(232,180,92,.45);
+  border-radius:14px}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+#bubble-text{white-space:pre-wrap;word-break:break-word}
+
+/* input row — ×N speed circle, pill input with the ✳ (new talk) glyph,
+   orange round send (official bottom bar) */
+#input-bar{display:flex;gap:9px;align-items:center;padding:8px 0 2px;flex:0 0 auto}
+.speed-btn{width:44px;height:44px;font-size:13.5px}
+.input-pill{flex:1;display:flex;align-items:center;min-width:0;
+  background:rgba(24,17,21,.88);border:1px solid var(--line);border-radius:999px;
+  padding:0 6px 0 16px;transition:.15s}
+.input-pill:focus-within{border-color:var(--gold);background:rgba(30,21,26,.95)}
+#input{flex:1;min-width:0;background:none;border:0;padding:12px 0;font-size:15px;
+  outline:none;user-select:text}
+#btn-newtalk{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto}
+#btn-newtalk img{width:17px;height:17px;filter:invert(80%) sepia(30%) saturate(500%) hue-rotate(330deg)}
+.send-btn{width:46px;height:46px;background:linear-gradient(160deg,#ff9a3d,#e08a2f);
+  border-color:transparent;box-shadow:0 3px 12px rgba(255,150,60,.35)}
+.send-btn img{filter:none}
+.send-btn:disabled{opacity:.45}
+
+/* -------------------------------------------------------- world view */
+#world-body{flex:1;display:flex;overflow:hidden}
+#world-fields{flex:1;overflow:auto;padding:10px 12px 16px;display:flex;flex-direction:column;gap:10px}
+.map-crumbs{display:flex;flex-wrap:wrap;gap:6px;padding:0 2px 4px}
+.map-crumbs button{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);
+  background:rgba(26,18,22,.7);color:var(--dim)}
+.map-crumbs button:last-child{color:var(--gold);border-color:var(--gold)}
+.map-body{flex:1}
+.map-pins{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 8px;padding:8px 4px 20px}
+.map-pin{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:0;padding:4px 2px;min-height:88px}
+.map-pin .pin-svg{width:42px;height:52px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
+.map-pin.here .pin-svg{filter:drop-shadow(0 0 10px rgba(232,180,92,.7))}
+.map-pin .pin-ring{position:absolute;top:2px;width:56px;height:56px;opacity:.9;pointer-events:none;
+  animation:spot-pulse 2.2s ease-in-out infinite}
+@keyframes spot-pulse{0%,100%{opacity:.35;transform:scale(.92)}50%{opacity:.9;transform:scale(1.06)}}
+.map-pin .pin-here{position:absolute;top:0;width:18px;height:18px}
+.map-pin .pin-faces{display:flex;gap:-4px;margin-top:-6px}
+.map-pin .pin-faces img{width:18px;height:18px;border-radius:50%;border:1px solid var(--gold);
+  object-fit:cover;background:#2a1e24;margin-left:-4px}
+.map-pin .pin-cap{font-size:10.5px;color:var(--dim);text-align:center;line-height:1.3;max-width:100%}
+#world-side{width:240px;flex:0 0 240px;border-left:1px solid var(--line);padding:14px;overflow:auto;
+  background:rgba(16,11,15,.6)}
+#world-side h3{margin:0 0 10px;font-size:13px;color:var(--dim);letter-spacing:.08em;font-weight:600}
+.npc-row{position:relative;display:flex;gap:9px;align-items:center;padding:8px;border-radius:10px;cursor:pointer;transition:.13s}
+.npc-row .npc-pin{position:absolute;left:28px;bottom:4px;width:14px;height:14px;pointer-events:none}
+.npc-row:hover{background:rgba(232,180,92,.1)}
+.npc-row img{width:34px;height:34px;border-radius:50%;object-fit:cover;background:#2a1e24}
+.npc-row .npc-name{font-size:13.5px}
+.npc-row .npc-note{font-size:11px;color:var(--dim)}
+
+/* --------------------------------------------------------- list views */
+#quest-list,#alarm-list,#memory-list{flex:1;overflow:auto;padding:14px;display:flex;
+  flex-direction:column;gap:10px}
+.card{background:rgba(26,18,22,.82);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px}
+.card.done{opacity:.55}
+.card-title{font-weight:600;margin-bottom:4px;display:flex;gap:8px;align-items:center}
+.card-sub{font-size:12.5px;color:var(--dim);line-height:1.6}
+.card-acts{margin-top:9px;display:flex;gap:8px}
+.mem-layer{font-size:12px;color:var(--dim);padding:6px 2px 0;letter-spacing:.04em}
+.tag{font-size:10.5px;padding:2px 8px;border-radius:999px;background:rgba(232,180,92,.16);
+  color:var(--gold);border:1px solid var(--line)}
+.tag.leaf{background:rgba(127,176,105,.16);color:var(--leaf)}
+.empty{text-align:center;color:#6d5f57;padding:40px 20px;font-size:13.5px;line-height:1.8}
+
+/* ----------------------------------------------------------- skins */
+#skin-grid{flex:1;overflow:auto;padding:14px;display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));align-content:start}
+.skin-card{background:rgba(26,18,22,.82);border:1px solid var(--line);border-radius:var(--radius);
+  overflow:hidden;cursor:pointer;transition:.15s}
+.skin-card:hover{border-color:var(--gold);transform:translateY(-2px)}
+.skin-card.active{border-color:var(--gold);box-shadow:0 0 18px rgba(232,180,92,.3)}
+.skin-card img{width:100%;display:block;aspect-ratio:3/4;object-fit:cover;background:#20171c}
+.skin-cap{padding:8px 10px;font-size:12px;display:flex;justify-content:space-between;gap:6px}
+.skin-id{color:var(--dim);font-size:10.5px}
+
+/* ----------------------------------------------------------- forms */
+.form-wrap{flex:1;overflow:auto;padding:14px 16px calc(24px + var(--safe-b));max-width:720px;width:100%}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12.5px;color:var(--dim);margin-bottom:5px;letter-spacing:.03em}
+.field input,.field select,.field textarea{width:100%;max-width:none;background:rgba(24,17,21,.9);
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;transition:.15s;
+  user-select:text;font-size:14px}
+.field select{-webkit-appearance:menulist;appearance:auto}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold)}
+.field textarea{min-height:78px;resize:vertical;line-height:1.6}
+.field .hint{font-size:11px;color:#6d5f57;margin-top:4px;line-height:1.5}
+.field-row{display:flex;gap:10px}
+.field-row>*{flex:1;min-width:0}
+.switch-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;
+  border-bottom:1px solid rgba(232,180,92,.12)}
+.switch-row:last-child{border-bottom:0}
+.switch{width:46px;height:26px;border-radius:999px;background:#3a2a30;position:relative;
+  transition:.18s;flex:0 0 auto}
+.switch.on{background:var(--gold)}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+  background:#f6ecdf;transition:.18s}
+.switch.on::after{transform:translateX(20px)}
+.section-title{font-size:12px;color:var(--gold);letter-spacing:.1em;margin:22px 0 10px;
+  padding-bottom:6px;border-bottom:1px solid var(--line);text-transform:uppercase}
+.section-title:first-child{margin-top:0}
+.btn-row{display:flex;gap:10px;margin-top:18px}
+.btn{flex:1;padding:12px;border-radius:11px;border:1px solid var(--line);
+  background:rgba(232,180,92,.12);font-size:14px;transition:.15s;text-align:center}
+.btn:hover{background:rgba(232,180,92,.22)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:linear-gradient(160deg,var(--gold),#c98f3c);color:#2a1a08;font-weight:700;border:0}
+.btn.danger{background:rgba(220,90,70,.16);color:#ff9a86;border-color:rgba(220,90,70,.3)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+.chip{font-size:12px;padding:6px 11px;border-radius:999px;border:1px solid var(--line);
+  background:rgba(26,18,22,.7);color:var(--dim);transition:.14s}
+.chip.on{background:rgba(232,180,92,.2);border-color:var(--gold);color:var(--gold)}
+
+/* ---------------------------------------------------------- toasts */
+#toast-host{position:absolute;left:50%;transform:translateX(-50%);
+  top:calc(var(--bars-h) + 8px);z-index:200;
+  display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:92%;max-width:420px}
+.toast{background:rgba(26,18,22,.95);border:1px solid var(--line);border-radius:11px;
+  padding:10px 15px;font-size:13.5px;backdrop-filter:blur(10px);animation:tin .2s ease;
+  box-shadow:0 8px 26px rgba(0,0,0,.5);max-width:100%}
+.toast.err{border-color:rgba(220,90,70,.5);color:#ffb0a0}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ----------------------------------------------------------- modal */
+#modal-scrim{position:absolute;inset:0;z-index:180;background:rgba(0,0,0,.55);
+  display:flex;align-items:flex-end;justify-content:center;padding:12px 12px calc(12px + var(--safe-b))}
+#modal-scrim.hidden{display:none}
+#modal{width:100%;max-width:440px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:18px 18px 14px 14px;padding:16px 16px 14px;box-shadow:0 -12px 40px rgba(0,0,0,.45);
+  animation:pop .2s ease;max-height:min(86%,720px);overflow:auto}
+#modal h3{margin:0 0 12px;font-size:16px;letter-spacing:.04em}
+#modal .field{margin-bottom:12px}
+.day-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.day-chips .chip{min-width:36px;text-align:center;padding:7px 0}
+
+.hud-chip{cursor:pointer}
+
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:170;background:var(--panel-2);
+  margin:0 auto;max-width:min(600px,100%);   /* stay readable on a wide desktop window */
+  border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:8px 14px calc(16px + var(--safe-b));
+  box-shadow:0 -12px 40px rgba(0,0,0,.45);animation:pop .2s ease;max-height:70%;overflow:auto}
+.sheet.hidden{display:none}
+.sheet-handle{width:40px;height:4px;border-radius:99px;background:var(--line);margin:4px auto 10px}
+.sheet h3{margin:0 0 10px;font-size:15px}
+#mode-bar{flex-wrap:wrap}
+
+.overlay{position:absolute;inset:0;z-index:220;background:rgba(8,6,10,.92);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+.overlay.hidden{display:none}
+#overlay-title h1{font-size:28px;letter-spacing:.12em;margin:12px 0 4px}
+.title-sub{color:var(--dim);margin:0 0 28px;letter-spacing:.2em}
+.title-sparkle img,.title-sparkle canvas{width:72px;height:72px;opacity:.9;display:block}
+#lottie-voice{width:22px;height:22px;display:block}
+#voice-text-ico{width:17px;height:17px;display:block}
+.voice-pill.on #voice-text-ico{filter:none}
+.lang-list{display:flex;flex-wrap:wrap;gap:8px}
+.lang-list .mode-pill{flex:1 1 42%;justify-content:center}
+.confetti-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#overlay-quest-clear{z-index:230;overflow:hidden}
+#overlay-title .btn{min-width:200px;flex:0 0 auto;align-self:center}
+.overlay > .btn, .qc-card > .btn{flex:0 0 auto}
+.onb-card{width:100%;max-width:420px;text-align:left;background:var(--panel);
+  border:1px solid var(--line);border-radius:16px;padding:18px 16px}
+.onb-progress{font-size:12px;color:var(--gold);letter-spacing:.08em;margin-bottom:8px}
+.onb-card h2{margin:0 0 6px;font-size:18px}
+.onb-sub{color:var(--dim);font-size:13px;line-height:1.6;margin:0 0 14px}
+/* The prologue narration screen ships its own art in the pack
+   (images/onboarding_prologue_bg.png — the dusk hillside over the island).
+   A scrim keeps the step counter readable over it. This used to be a made-up
+   radial gradient plus a placeholder circle. */
+#overlay-prologue{background:
+  linear-gradient(180deg,rgba(6,4,8,.62),rgba(6,4,8,.86)),
+  url('../assets/images/onboarding_prologue_bg.png') center/cover no-repeat #060408}
+#overlay-alarm{background:rgba(10,6,8,.88);z-index:240}
+.ring-card{background:var(--panel-2);border:1px solid var(--gold);border-radius:18px;padding:28px 22px;min-width:240px}
+.ring-time{font-size:42px;font-weight:700;letter-spacing:.06em}
+.ring-type{color:var(--gold);margin:8px 0 18px}
+.qc-card{display:flex;flex-direction:column;align-items:center;gap:10px}
+.qc-card img{width:72px}
+#skin-veil{position:absolute;inset:0;z-index:15;background:#0a0608;opacity:0;transition:opacity .45s;pointer-events:none}
+#skin-veil.veil-on{opacity:.92}
+.wm-cap{font-size:14px;flex:1}
+.slot-info{flex:1;font-size:12.5px;color:var(--dim);line-height:1.4}
+input[type=range]{width:100%;accent-color:var(--gold)}
+#btn-title-start:disabled{opacity:.45}
+
+.inv-row{display:flex;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--line)}
+.wm-hero{margin-bottom:16px}
+.wm-hero h3{margin:0 0 6px}
+.wm-path{display:flex;flex-direction:column;gap:12px}
+.wm-tile{position:relative;display:flex;align-items:center;gap:12px;padding:8px;cursor:pointer}
+.wm-tile.locked{opacity:.45;cursor:not-allowed}
+.wm-tile .wm-base{width:56px;height:56px}
+.wm-tile .wm-ico{position:absolute;left:22px;width:28px;height:28px}
+.wm-tile.locked{opacity:.45}
+.wm-tile.clear{opacity:.85}
+.slot-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.skin-card.locked{cursor:not-allowed;opacity:.75}
+
+/* --------------------------------------------------- RPG HUD / quests */
+/* (the visual rules live up in the talk-view block: .apple-row / .money-pill) */
+.apple-mini{width:15px;height:15px;display:inline-block;vertical-align:-2px}
+#hud-money img{filter:none}
+.hud-chip b{color:var(--gold);font-weight:700}
+
+.qcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;margin-bottom:14px}
+.qcard-top{display:flex;gap:10px;align-items:center}
+.qico{width:34px;height:34px;filter:invert(85%) sepia(15%) saturate(400%) hue-rotate(330deg)}
+.qhead{flex:1}
+.qtitle{font-weight:700;font-size:15px}
+.qno{font-size:11.5px;color:var(--gold);letter-spacing:.06em;margin-top:2px}
+.qdesc{color:var(--dim);font-size:13px;line-height:1.6;margin:10px 0 6px}
+.qgoal{font-size:13px}
+.qgoal-t{color:var(--gold)}
+.qobs{font-size:12px;color:#9a8272;margin-top:4px;font-style:italic}
+.qbar{height:6px;border-radius:99px;background:rgba(232,180,92,.14);margin:10px 0 12px;overflow:hidden}
+.qbar i{display:block;height:100%;background:linear-gradient(90deg,var(--ember),var(--gold));
+  border-radius:99px;transition:width .3s ease}
+.qacts{display:flex;gap:8px;flex-wrap:wrap}
+.mini-btn.primary{background:rgba(232,180,92,.28);border-color:var(--gold);color:var(--gold);font-weight:600}
+.qship{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dim);margin-bottom:12px}
+.qship img{width:16px;height:16px;filter:invert(85%) sepia(15%) saturate(400%) hue-rotate(330deg)}
+.qhist-title{font-size:12px;color:var(--gold);letter-spacing:.08em;margin:14px 0 6px}
+.qhist{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--dim);padding:5px 2px}
+.qhist img{width:16px;height:16px;filter:invert(85%) sepia(15%) saturate(400%) hue-rotate(330deg)}
+.map-pin{position:relative}
+.map-pin.locked{opacity:.5}
+.pin-lock{position:absolute;right:6px;top:6px;width:14px;height:14px;z-index:2}
+.badge-dot{width:8px;height:8px;border-radius:50%;background:var(--ember);display:inline-block;
+  margin-left:auto;box-shadow:0 0 8px rgba(255,138,76,.8)}
+
+/* ------------------------------------------------------- daily login */
+.dl-head h3{margin:0 0 4px}
+.dl-sub{color:var(--dim);font-size:13px;margin:0 0 4px}
+.dl-prog{color:var(--gold);font-size:13px;margin:0 0 12px}
+.dl-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.dl-cell{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:9px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.dl-cell img{width:20px;height:20px;filter:invert(85%) sepia(15%) saturate(400%) hue-rotate(330deg)}
+/* apples keep their own red — the sepia/hue wash turns them green */
+.dl-cell img[src*='apple'],.apple-mini[src*='apple'],#hud-stamina img[src*='apple']{filter:none}
+.dl-wd{font-size:11px;color:var(--gold);letter-spacing:.06em}
+.dl-rw{font-size:10.5px;color:var(--dim);line-height:1.35}
+.dl-cell.today{border-color:var(--gold);box-shadow:0 0 14px rgba(232,180,92,.25)}
+.dl-cell.claimed{opacity:.5}
+.dl-cell.next{border-color:rgba(255,138,76,.6)}
+.dl-goal{font-size:12.5px;color:var(--dim);margin:0 0 12px}
+
+/* -------------------------------------------------- faint / status sheet */
+.faint-msg{color:var(--dim);font-size:13.5px;line-height:1.7;max-width:300px;margin:0 0 6px}
+.st-row{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;
+  padding:9px 2px;border-bottom:1px solid var(--line)}
+.st-row .st-k{color:var(--dim)}
+.st-row .st-v{color:var(--ink);text-align:right;max-width:66%}
+.st-sect{font-size:12px;color:var(--gold);letter-spacing:.08em;margin:14px 0 4px}
+.st-mem{font-size:12px;color:var(--dim);padding:4px 2px;border-bottom:1px dashed rgba(232,180,92,.12)}
+.inv-tabs{display:flex;gap:8px;margin-bottom:8px}
+.inv-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--dim)}
+.npc-sheet-row{display:flex;gap:11px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line)}
+.npc-sheet-row img{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#2a1e24;
+  border:1px solid var(--line);flex:0 0 auto}
+.npc-sheet-box{min-width:0}
+.npc-sheet-row .npc-name{font-size:14px;font-weight:600}
+.npc-sheet-row .npc-note{font-size:12px;color:var(--dim);line-height:1.45}
+#retry-bar{display:flex;gap:10px;align-items:center;justify-content:center;padding:6px;
+  font-size:13px;color:#ffb0a0}
+.speed-seg{display:flex;gap:6px;margin:6px 0 2px}
+.speed-seg button{border:1px solid var(--line);border-radius:10px;padding:6px 10px;
+  background:rgba(20,14,18,.6)}
+.speed-seg button img{width:22px;height:22px;display:block;filter:invert(85%) sepia(15%) saturate(400%) hue-rotate(330deg)}
+.speed-seg button.on{border-color:var(--gold);background:rgba(232,180,92,.22)}
+
+@media (max-width:720px){
+  #world-side{display:none}
+  #bubble{font-size:15.5px}
+  .map-pins{grid-template-columns:repeat(3,1fr)}
+}

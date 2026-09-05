@@ -1,0 +1,57 @@
+{
+  "name": "ryza-chat-desktop",
+  "productName": "RyzaChat",
+  "version": "1.2.15",
+  "private": true,
+  "description": "Ryza Chat offline companion framework — frameless desktop shell",
+  "main": "main.js",
+  "author": "zeroa234",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "33.2.0",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.ryza.chat.desktop",
+    "productName": "RyzaChat",
+    "directories": {
+      "output": "../output/desktop",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "web-storage.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../web",
+        "to": "web",
+        "filter": ["**/*"]
+      }
+    ],
+    "asar": true,
+    "compression": "normal",
+    "win": {
+      "target": [
+        { "target": "nsis" }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Ryza Chat",
+      "uninstallDisplayName": "Ryza Chat - ライザと話す",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "RyzaChat-Setup-${version}.${ext}"
+    }
+  }
+}

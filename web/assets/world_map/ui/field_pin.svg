@@ -1,0 +1,25 @@
+<svg preserveAspectRatio="xMidYMid meet" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="62 62 126 126" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="icon">
+<g id="Ellipse 96">
+<ellipse cx="124.982" cy="125.173" rx="56.6777" ry="56.6977" transform="rotate(45 124.982 125.173)" fill="url(#paint0_linear_0_61)"/>
+</g>
+<g id="Vector">
+<path d="M108.003 149.004C108.003 147.899 108.898 147.004 110.003 147.004H141.003C142.107 147.004 143.003 147.899 143.003 149.004C143.003 150.108 142.107 151.004 141.003 151.004H110.003C108.898 151.004 108.003 150.108 108.003 149.004Z" fill="url(#paint1_linear_0_61)"/>
+<path d="M143.003 115.239C143.003 106.283 135.157 99.0039 125.503 99.0039C115.849 99.0039 108.003 106.283 108.003 115.239C108.003 127.416 125.503 145.004 125.503 145.004C125.503 145.004 143.003 127.416 143.003 115.239ZM119.669 115.239C119.669 112.263 122.294 109.827 125.503 109.827C128.711 109.827 131.336 112.263 131.336 115.239C131.336 116.674 130.721 118.051 129.627 119.066C128.534 120.081 127.05 120.651 125.503 120.651C123.956 120.651 122.472 120.081 121.378 119.066C120.284 118.051 119.669 116.674 119.669 115.239Z" fill="url(#paint2_linear_0_61)"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_61" x1="57.0931" y1="136.288" x2="187.921" y2="124.527" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF4400"/>
+<stop offset="1" stop-color="#FFC32C"/>
+</linearGradient>
+<linearGradient id="paint1_linear_0_61" x1="123.184" y1="133.599" x2="116.94" y2="111.638" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFF39C"/>
+<stop offset="1" stop-color="white"/>
+</linearGradient>
+<linearGradient id="paint2_linear_0_61" x1="123.184" y1="133.599" x2="116.94" y2="111.638" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFF39C"/>
+<stop offset="1" stop-color="white"/>
+</linearGradient>
+</defs>
+</svg>

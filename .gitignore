@@ -1,0 +1,69 @@
+# Secrets — keep the local file, never commit keys
+config/providers.json
+config/privacy_markers.local.txt
+config/android-tools.local.txt
+.android-tools/
+
+# Binary media is not shipped in git. Restore locally with
+# scripts/restore_media.py from a Release package / unpacked desktop tree.
+# Generic shell icons (desktop/build/icon.png, android ic_launcher.png) ARE tracked.
+web/assets/**/*.png
+web/assets/**/*.jpg
+web/assets/**/*.jpeg
+web/assets/**/*.webp
+web/assets/**/*.gif
+web/assets/**/*.m4a
+web/assets/**/*.mp3
+web/assets/**/*.wav
+web/assets/**/*.ogg
+web/assets/**/*.aac
+web/assets/**/*.skel
+web/assets/fonts/*.ttf
+web/assets/fonts/*.otf
+/assets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+
+# Desktop (Electron) build junk — placeholder desktop/build/icon.png IS tracked
+desktop/node_modules/
+desktop/dist/
+output/
+
+# Android build junk
+android/.gradle/
+android/**/build/
+android/local.properties
+android/.idea/
+*.iml
+android/keystore/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# scratch (agent working files, never shipped)
+temp/
+
+# Maintainer-only notes and extracted dumps (kept locally, not in the public tree).
+docs/AUDIT.md
+docs/HANDOFF.md
+docs/AUDIT.internal.md
+docs/HANDOFF.internal.md
+docs/PROJECT.internal.md
+docs/dart_source_tree.txt
+docs/reference/apk_asset_inventory.txt
+docs/reference/strings_ja_ui.txt
+docs/reference/PhysicsConstraint.ts
+docs/reference/Skeleton.ts
+docs/reference/spine_example.html
+data/libapp_strings_ascii.txt
+data/libapp_strings_ja.txt

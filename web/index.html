@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>ライザと話す — Ryza Chat</title>
+<link rel="stylesheet" href="css/app.css?v=model-pick-1">
+</head>
+<body>
+<div id="phone">
+
+<div id="stage">
+  <canvas id="scene-canvas"></canvas>
+  <div id="avatar-hit"></div>
+  <div id="ripple-layer"></div>
+  <div id="vignette"></div>
+  <div id="scene-curtain"></div>
+  <div id="skin-veil"></div>
+</div>
+
+<!-- Official chrome (2026-09-07 UI pass, from the shipped screenshots):
+     one transparent top row — hamburger left, voice/text pill + » right.
+     The old two-row topbar/subbar HUD moved to the stage edges: apples/coin/
+     Lv bottom-left, round quick buttons bottom-right, conversation in a
+     bottom log panel, and the side menu (ショップ…ワールドマップにもどる)
+     slides in on the right. -->
+<header id="topbar">
+  <button class="icon-btn plain" id="btn-menu" title="メニュー"><img src="assets/icons/drawer.svg" alt=""></button>
+  <div class="spacer"></div>
+  <button type="button" id="btn-voice" class="voice-pill" title="音声 / テキスト">
+    <canvas id="lottie-voice" width="30" height="30"></canvas><img id="voice-text-ico" class="hidden" src="assets/icons/mode_text.svg" alt=""><span id="voice-pill-label">ボイス</span>
+  </button>
+  <button class="icon-btn" id="btn-expand" title="メニュー">»</button>
+</header>
+
+<div id="side-menu">
+  <button type="button" class="side-item" id="sm-shop"><span data-i18n="nav.shop">ショップ</span><i class="round"><img src="assets/icons/shop.svg" alt=""></i></button>
+  <button type="button" class="side-item" id="sm-skin"><span data-i18n="nav.skin">スキン</span><i class="round"><img src="assets/icons/skin.svg" alt=""></i></button>
+  <button type="button" class="side-item" id="sm-save"><span data-i18n="nav.save">セーブデータ</span><i class="round"><img src="assets/icons/save_data.svg" alt=""></i></button>
+  <button type="button" class="side-item" id="sm-full"><span data-i18n="nav.fullscreen">全画面表示</span><i class="round"><img src="assets/icons/allscreen.svg" alt=""></i></button>
+  <button type="button" class="side-item" id="sm-chara"><span data-i18n="nav.toggleChara">キャラ表示切り替え</span><i class="round"><img src="assets/icons/chara_hide.svg" alt=""></i></button>
+  <button type="button" class="side-item" id="sm-settings"><span data-i18n="nav.settings">設定</span><i class="round"><img src="assets/icons/charaedit.svg" alt=""></i></button>
+  <button type="button" class="side-item" id="sm-map"><span data-i18n="nav.backToMap">ワールドマップにもどる</span><i class="round gold"><img src="assets/icons/world_map.svg" alt=""></i></button>
+</div>
+
+<nav id="drawer">
+  <div class="drawer-head">
+    <img id="drawer-avatar" src="assets/images/chara_icons/ryza.png" alt="">
+    <div>
+      <div class="drawer-name">ライザ</div>
+      <div class="drawer-sub" id="drawer-day">同伴 1 天</div>
+    </div>
+  </div>
+  <ul class="drawer-list">
+    <li data-view="talk" class="active"><img src="assets/icons/chara.svg" alt=""> <span data-i18n="nav.talk">对话</span></li>
+    <li data-view="welcome"><img src="assets/icons/welcome_mission.svg" alt=""> <span data-i18n="nav.welcome">欢迎任务</span></li>
+    <li data-view="daily" id="li-daily"><img src="assets/icons/present.svg" alt=""> <span data-i18n="nav.daily">每日登录</span><i class="badge-dot hidden" id="daily-dot"></i></li>
+    <li data-view="quest"><img src="assets/icons/quest.svg" alt=""> <span data-i18n="nav.quest">任务</span></li>
+    <li data-view="alarm"><img src="assets/icons/alarm.svg" alt=""> <span data-i18n="nav.alarm">闹钟</span></li>
+    <li data-action="lang"><img src="assets/icons/language.svg" alt=""> <span data-i18n="nav.lang">语言</span></li>
+    <li data-view="chara"><img src="assets/icons/profile.svg" alt=""> <span data-i18n="nav.profile">玩家档案</span></li>
+    <li data-view="memory"><img src="assets/icons/save_data.svg" alt=""> <span data-i18n="nav.memory">回忆</span></li>
+    <li data-action="newTalk"><img src="assets/icons/asterisk.svg" alt=""> <span data-i18n="nav.newTalk">新的对话</span></li>
+    <li data-action="toggleChara"><img src="assets/icons/chara_hide.svg" alt="" id="ico-toggle-chara"> <span data-i18n="nav.toggleChara">显示/隐藏立绘</span></li>
+    <li data-action="fullscreen"><img src="assets/icons/allscreen.svg" alt=""> <span data-i18n="nav.fullscreen">全屏</span></li>
+    <li data-view="settings"><img src="assets/icons/charaedit.svg" alt=""> <span data-i18n="nav.settings">设置</span></li>
+  </ul>
+  <div class="drawer-foot">离线重建版 · 不连接官方服务器</div>
+</nav>
+<div id="scrim"></div>
+
+<main id="view-talk" class="view active">
+  <div id="hud-cluster">
+    <button type="button" class="apple-row" id="hud-stamina" title="スタミナ"></button>
+    <div class="hud-line">
+      <button type="button" class="money-pill" id="hud-money" title="所持金"><img src="assets/icons/hud_coin.svg" alt=""><b id="hud-money-n">0</b></button>
+      <button type="button" class="lv-pill" id="hud-level" title="レベル">Lv1</button>
+    </div>
+  </div>
+  <div id="quick-btns">
+    <button type="button" class="round-btn hidden" id="btn-posture" title="座る/立つ">座</button>
+    <button type="button" class="round-btn" id="btn-log-toggle" title="会話履歴"><img src="assets/icons/arrow_up.svg" alt=""></button>
+    <button type="button" class="round-btn" id="btn-quest-sheet" title="クエスト"><img src="assets/icons/quest.svg" alt=""></button>
+    <button type="button" class="round-btn" id="btn-bag" title="道具"><img src="assets/icons/bag.svg" alt=""></button>
+  </div>
+  <div id="log-panel">
+    <div id="log-head">
+      <img id="log-avatar" src="assets/images/chara_icons/ryza.png" alt="">
+      <div id="log-ident">
+        <div id="log-name">ライザ</div>
+        <div id="log-sub" title="対話モード">自由に雑談を楽しむモード</div>
+      </div>
+    </div>
+    <div id="log-body">
+      <div id="bubble"><span id="bubble-text"></span></div>
+    </div>
+    <div id="log-dots"></div>
+    <div id="retry-bar" class="hidden">
+      <span data-i18n="talk.retryHint">连接失败了</span>
+      <button class="mini-btn" id="btn-retry" data-i18n="talk.retry">重试</button>
+    </div>
+    <div id="input-bar">
+      <button type="button" class="round-btn speed-btn" id="btn-speed" title="テキスト速度">×1</button>
+      <div class="input-pill">
+        <input id="input" type="text" placeholder="和莱莎说点什么…" autocomplete="off">
+        <button type="button" id="btn-newtalk" title="新しい会話"><img src="assets/icons/asterisk.svg" alt=""></button>
+      </div>
+      <button type="button" id="btn-send" class="round-btn send-btn" title="送信"><img src="assets/icons/send.svg" alt="send"></button>
+    </div>
+  </div>
+</main>
+
+<section id="view-welcome" class="view">
+  <div class="view-head"><h2 data-i18n="wm.title">欢迎任务</h2></div>
+  <div id="welcome-body" class="form-wrap"></div>
+</section>
+
+<section id="view-world" class="view">
+  <div class="view-head"><h2 data-i18n="world.title">世界地图</h2>
+    <div class="head-actions">
+      <button class="mini-btn" id="btn-world-people">👥 <span data-i18n="world.people">此地の人</span></button>
+      <select id="world-area"></select>
+      <button class="mini-btn" id="btn-tod">🌤 <span id="btn-tod-label">时段</span></button>
+    </div>
+  </div>
+  <div id="world-body">
+    <div id="world-fields"></div>
+    <div id="world-side">
+      <h3 data-i18n="world.here">在此地</h3>
+      <div id="world-npcs"></div>
+    </div>
+  </div>
+</section>
+
+<section id="view-quest" class="view">
+  <div class="view-head"><h2 data-i18n="quest.title">任务</h2>
+    <button class="mini-btn" id="btn-quest-new" data-i18n="quest.auto">让莱莎想一个</button></div>
+  <div id="quest-list" class="form-wrap"></div>
+</section>
+
+<section id="view-daily" class="view">
+  <div class="view-head"><h2 data-i18n="dl.title">每日登录</h2></div>
+  <div id="daily-body" class="form-wrap"></div>
+</section>
+
+<section id="view-alarm" class="view">
+  <div class="view-head"><h2 data-i18n="alarm.title">闹钟</h2>
+    <button class="mini-btn" id="btn-alarm-new">+ 新闹钟</button></div>
+  <div id="alarm-list"></div>
+</section>
+
+<section id="view-chara" class="view">
+  <div class="view-head"><h2 data-i18n="chara.title">角色设定</h2>
+    <button class="mini-btn" id="btn-chara-skin" data-i18n="nav.skin">服装</button></div>
+  <div class="form-wrap" id="chara-form"></div>
+</section>
+
+<section id="view-skin" class="view">
+  <div class="view-head"><h2 data-i18n="skin.title">服装</h2></div>
+  <div id="skin-grid"></div>
+</section>
+
+<section id="view-memory" class="view">
+  <div class="view-head"><h2 data-i18n="memory.title">回忆</h2>
+    <div class="head-actions">
+      <button class="mini-btn" id="btn-memory-add" data-i18n="memory.add">添加</button>
+      <button class="mini-btn" id="btn-memory-flush" data-i18n="memory.flush">立即总结</button>
+      <button class="mini-btn" id="btn-memory-clear" data-i18n="memory.clearLog">清空对白</button>
+    </div>
+  </div>
+  <div id="memory-list"></div>
+</section>
+
+<section id="view-settings" class="view">
+  <div class="view-head"><h2 data-i18n="settings.title">设置</h2>
+    <button class="mini-btn" id="btn-settings-reset">恢复默认</button></div>
+  <div class="form-wrap" id="settings-form"></div>
+</section>
+
+<div id="toast-host"></div>
+
+<div id="modal-scrim" class="hidden">
+  <form id="modal" autocomplete="off">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <div class="btn-row">
+      <button type="button" class="btn" id="modal-cancel" data-i18n="form.cancel">取消</button>
+      <button type="submit" class="btn primary" id="modal-ok" data-i18n="form.ok">确定</button>
+    </div>
+  </form>
+</div>
+
+<div id="sheet-mode" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <h3 data-i18n="mode.sheet">对话模式</h3>
+  <div id="mode-bar">
+    <button class="mode-pill" data-mode="chat"><img src="assets/icons/mode_chat.svg" alt=""><span data-i18n="mode.chat">雑談</span></button>
+    <button class="mode-pill" data-mode="story"><img src="assets/icons/mode_story.svg" alt=""><span data-i18n="mode.story">物語</span></button>
+    <button class="mode-pill" data-mode="immersive"><img src="assets/icons/mode_immersive.svg" alt=""><span data-i18n="mode.immersive">没入</span></button>
+    <button class="mode-pill" data-mode="asmr"><img src="assets/icons/mode_asmr.svg" alt=""><span data-i18n="mode.asmr">ASMR</span></button>
+    <button class="mode-pill" data-mode="text"><img src="assets/icons/mode_text.svg" alt=""><span data-i18n="mode.text">テキスト</span></button>
+    <span class="mode-sep"></span>
+    <button class="mode-pill style" data-style="voice"><span data-i18n="style.voice">🔊 音声</span></button>
+    <button class="mode-pill style" data-style="text"><span data-i18n="style.text">📝 文字</span></button>
+  </div>
+  <div class="sheet-scene">
+    <button type="button" class="hud-chip shrink" id="hud-place" title="所在地">ライザの家</button>
+    <button type="button" class="hud-chip" id="hud-tod" title="時間帯">昼</button>
+    <button type="button" class="hud-chip" id="hud-mode" title="対話モード">雑談</button>
+    <button type="button" class="icon-btn" id="btn-map" title="ワールドマップ"><img src="assets/icons/world_map.svg" alt=""></button>
+  </div>
+</div>
+
+<div id="sheet-inv" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <h3 data-i18n="inv.title">道具</h3>
+  <div id="inv-tabs" class="inv-tabs">
+    <button class="mode-pill active" data-bag="you"><span data-i18n="inv.you">あなたのバッグ</span></button>
+    <button class="mode-pill" data-bag="ryza"><span data-i18n="inv.ryza">ライザのバッグ</span></button>
+  </div>
+  <div id="inv-list"></div>
+  <div class="inv-foot">
+    <span id="inv-cap"></span>
+    <button class="mini-btn hidden" id="btn-bag-up"></button>
+  </div>
+</div>
+
+<div id="sheet-status" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <h3 data-i18n="st.title">冒険ステータス</h3>
+  <div id="status-body"></div>
+</div>
+
+<div id="sheet-npc" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <h3 id="npc-sheet-title">この場所にいる人</h3>
+  <div id="npc-sheet-list"></div>
+</div>
+
+<div id="sheet-lang" class="sheet hidden">
+  <div class="sheet-handle"></div>
+  <h3 data-i18n="nav.lang">语言</h3>
+  <div id="lang-list" class="lang-list"></div>
+</div>
+
+<div id="overlay-title" class="overlay">
+  <div class="title-sparkle"><canvas id="lottie-fire" width="96" height="96"></canvas></div>
+  <h1>ライザと話す</h1>
+  <p class="title-sub">Atelier Ryza</p>
+  <button type="button" class="btn primary" id="btn-title-start" data-i18n="title.start" disabled>…</button>
+</div>
+
+<div id="overlay-onboard" class="overlay hidden">
+  <div class="onb-card">
+    <div id="onb-progress" class="onb-progress"></div>
+    <h2 id="onb-prompt"></h2>
+    <p id="onb-sub" class="onb-sub"></p>
+    <div id="onb-body"></div>
+    <div class="btn-row">
+      <button type="button" class="btn" id="onb-skip">跳过</button>
+      <button type="button" class="btn primary" id="onb-next">下一步</button>
+    </div>
+  </div>
+</div>
+
+<div id="overlay-prologue" class="overlay hidden">
+  <p id="pro-step"></p>
+  <p id="pro-hint" class="onb-sub"></p>
+</div>
+
+<div id="overlay-alarm" class="overlay hidden">
+  <div class="ring-card">
+    <div class="ring-time" id="ring-time">07:00</div>
+    <div class="ring-type" id="ring-type"></div>
+    <div class="btn-row">
+      <button type="button" class="btn" id="ring-snooze" data-i18n="alarm.snooze">贪睡</button>
+      <button type="button" class="btn primary" id="ring-dismiss" data-i18n="alarm.dismiss">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="overlay-quest-clear" class="overlay hidden">
+  <canvas id="lottie-confetti" class="confetti-canvas"></canvas>
+  <div class="qc-card">
+    <img src="assets/icons/quest_clear_icon.svg" alt="">
+    <h3 data-i18n="quest.cleared">クエストクリア</h3>
+    <p class="qc-title"></p>
+    <p class="qc-praise"></p>
+    <button type="button" class="btn primary" id="qc-ok" data-i18n="form.ok">确定</button>
+  </div>
+</div>
+
+<div id="overlay-faint" class="overlay hidden">
+  <div class="qc-card">
+    <img src="assets/icons/stamina_apple_empty.svg" alt="">
+    <h3 data-i18n="stamina.faintTitle">スタミナがゼロ…</h3>
+    <p class="faint-msg" data-i18n="stamina.faintMsg">無くなると気絶しちゃうから。安全な場所で寝ると回復するよ。</p>
+    <div class="btn-row">
+      <button type="button" class="btn" id="faint-cancel" data-i18n="form.cancel">戻る</button>
+      <button type="button" class="btn" id="faint-cheat" data-i18n="cheat.refill">作弊：全回復</button>
+      <button type="button" class="btn primary" id="faint-sleep" data-i18n="stamina.sleep">おうちへ帰って寝る</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /phone -->
+
+<script src="vendor/spine-webgl.js"></script>
+<script src="js/util.js?v=hash-2"></script>
+<script src="js/config.js?v=cheat-1"></script>
+<script src="js/i18n.js?v=cheat-2"></script>
+<script src="js/api.js?v=undress-1"></script>
+<script src="js/memory.js?v=mem-1"></script>
+<script src="js/game.js?v=cheat-1"></script>
+<script src="js/quests.js?v=cheat-1"></script>
+<script src="js/daily.js?v=cheat-1"></script>
+<script src="js/avatar.js?v=emotion-keep-1"></script>
+<script src="js/nsfw.js?v=undress-1"></script>
+<script src="js/world.js?v=tag-fill-1"></script>
+<script src="js/audio.js?v=route-6"></script>
+<script src="js/alarm.js?v=vb-1"></script>
+<script src="js/onboarding.js?v=tut-2"></script>
+<script src="js/fx.js?v=1"></script>
+<script src="js/shell.js?v=1"></script>
+<script src="js/kbd.js?v=1"></script>
+<script src="js/app.js?v=undress-1"></script>
+</body>
+</html>

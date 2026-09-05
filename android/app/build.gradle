@@ -1,0 +1,32 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.ryza.chat"
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.ryza.chat"
+        minSdk 24
+        targetSdk 34
+        versionCode 18
+        versionName "1.2.15"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    sourceSets {
+        main {
+            assets.srcDirs = ["../../web"]
+        }
+    }
+    packaging {
+        resources.excludes += "**/*.md"
+    }
+}
+
+/* Plain Activity + framework WebView — deliberately NO androidx, so the APK
+   can also be built without Gradle at all: scripts/build_apk.ps1 drives
+   aapt2 / javac / d8 / zipalign / apksigner directly. */

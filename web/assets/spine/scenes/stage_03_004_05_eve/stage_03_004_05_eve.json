@@ -1,0 +1,46 @@
+{
+  "id": "stage_03_004_05_eve",
+  "name": "stage_03_004_05_eve",
+  "config": {
+    "backgroundSpinePath": "assets/scenes/stage_03_004_05_eve/spine/stage_03_004_05_eve.skel",
+    "constraintOverrides": {
+      "con_bg_far_01": {
+        "translateMixX": 7.500000298023224,
+        "translateMixY": 2.9999999329447746,
+        "scaleMixX": 100.0,
+        "scaleMixY": 100.0
+      },
+      "con_bg_far_02": {
+        "translateMixX": 5.000000074505806,
+        "translateMixY": 1.9999999552965164,
+        "scaleMixX": 100.0,
+        "scaleMixY": 100.0
+      },
+      "con_bg_far_03": {
+        "translateMixX": 3.999999910593033,
+        "translateMixY": 0.9999999776482582,
+        "scaleMixX": 100.0,
+        "scaleMixY": 100.0
+      },
+      "con_chara_root": {
+        "translateMixX": 0.0,
+        "translateMixY": 0.0,
+        "scaleMixX": 100.0,
+        "scaleMixY": 100.0
+      }
+    },
+    "light": {
+      "direction": 180.0,
+      "color": 4294944844,
+      "shadowEnabled": false,
+      "rimEnabled": true,
+      "rimFeather": true,
+      "rimOpacity": 0.9,
+      "rimGlowWidth": 16.0,
+      "rimGlowPower": 4.5
+    },
+    "midgroundPostures": [
+      "posture_sitting"
+    ]
+  }
+}

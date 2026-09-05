@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.ryza.chat">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <application
+        android:label="ライザと話す"
+        android:icon="@drawable/ic_launcher"
+        android:usesCleartextTraffic="true"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
+        android:allowBackup="true"
+        android:hasFragileUserData="true"
+        android:extractNativeLibs="false">
+        <!-- hasFragileUserData (API 29+, ignored on older systems): Android asks
+             whether to KEEP the app data when uninstalling, so a reinstall can
+             restore the saves instead of silently wiping them. Without it an
+             uninstall is final. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:windowSoftInputMode="adjustResize"
+            android:windowLayoutInDisplayCutoutMode="shortEdges"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+            <!-- shortEdges (API 27+, ignored below): without it Android
+                 letterboxes the cutout region with BLACK bars on notched
+                 phones — half of the reported phone letterboxing. The web
+                 layer already pads the top bar with env(safe-area-inset-top)
+                 and the viewport meta ships viewport-fit=cover. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
