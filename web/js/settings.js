@@ -578,6 +578,9 @@
         function (v) { Config.set('chara.callMe', v); });
       App._field(w, T('chara.extra'), c.extra,
         function (v) { Config.set('chara.extra', v); }, { multi: true });
+      App._field(w, T('chara.override'), c.systemPromptOverride,
+        function (v) { Config.set('chara.systemPromptOverride', v); },
+        { multi: true, hint: T('chara.override.hint') });
 
       App._title(w, 'あなた（プレイヤー設定）');
       App._field(w, T('onb.name'), p.name,

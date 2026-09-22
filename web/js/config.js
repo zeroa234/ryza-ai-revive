@@ -119,7 +119,13 @@
       dislikes: 'じっとしていること',
       situation: 'クーケン島の自分の家で、君と一緒に過ごしている',
       callMe: '君',
-      extra: ''
+      extra: '',
+      /* Optional replacement for the built-in Ryza character block. Empty =
+         ship the default. When set, it swaps ONLY the character description;
+         the reply protocol (tag line + <state>), the output-language rules and
+         the per-turn scene block still come from api.js, so a custom persona
+         can't break the avatar or the RPG state. */
+      systemPromptOverride: ''
     },
 
     /* ---- player profile (onboarding answers) ---- */
