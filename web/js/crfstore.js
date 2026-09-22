@@ -35,6 +35,15 @@
   var _db = null;
   var _urls = {};                            /* id -> { pageName: blobURL } */
 
+  /* Errors carry a stable .code so the UI can translate them (see i18n crf.err.*)
+     while the English message stays a readable fallback. The code is the contract
+     the regression suite checks — the wording is free to change. */
+  function crfErr(code, msg) {
+    var e = new Error(msg || code);
+    e.code = code;
+    return e;
+  }
+
   /* ---------------------------------------------------------------- idb */
   function open() {
     if (_db) return Promise.resolve(_db);
@@ -76,14 +85,14 @@
     for (var i = buf.byteLength - 22; i >= 0 && i > buf.byteLength - 66000; i--) {
       if (u32(dv, i) === 0x06054b50) { eocd = i; break; }
     }
-    if (eocd < 0) throw new Error('不是有效的 ZIP');
+    if (eocd < 0) throw crfErr('CRF_BAD_ZIP', 'Not a valid ZIP file');
     var count = u16(dv, eocd + 10);
     var cdOff = u32(dv, eocd + 16);
-    if (count > MAX_ENTRIES) throw new Error('ZIP 条目过多（上限 ' + MAX_ENTRIES + '）');
+    if (count > MAX_ENTRIES) throw crfErr('CRF_TOO_MANY', 'Too many entries in the ZIP (max ' + MAX_ENTRIES + ')');
     var out = [];
     var p = cdOff;
     for (var n = 0; n < count; n++) {
-      if (u32(dv, p) !== 0x02014b50) throw new Error('ZIP 目录损坏');
+      if (u32(dv, p) !== 0x02014b50) throw crfErr('CRF_DIR_CORRUPT', 'ZIP central directory is corrupt');
       var method = u16(dv, p + 10);
       var size = u32(dv, p + 24);
       var nameLen = u16(dv, p + 28);
@@ -101,14 +110,14 @@
   async function entryBytes(zip, e) {
     var dv = zip.dv;
     var p = e.localOff;
-    if (u32(dv, p) !== 0x04034b50) throw new Error('ZIP 本地头损坏');
+    if (u32(dv, p) !== 0x04034b50) throw crfErr('CRF_LOCAL_CORRUPT', 'ZIP local header is corrupt');
     var nameLen = u16(dv, p + 26);
     var extraLen = u16(dv, p + 28);
     var start = p + 30 + nameLen + extraLen;
     var slice = zip.buf.slice(start, start + e.size);
     if (e.method === 0) return new Uint8Array(slice);
-    if (e.method !== 8) throw new Error('不支持的压缩方式: ' + e.method);
-    if (typeof DecompressionStream === 'undefined') throw new Error('环境不支持解压');
+    if (e.method !== 8) throw crfErr('CRF_BAD_METHOD', 'Unsupported compression method: ' + e.method);
+    if (typeof DecompressionStream === 'undefined') throw crfErr('CRF_NO_INFLATE', 'This environment cannot decompress the ZIP');
     var ds = new DecompressionStream('deflate-raw');
     var stream = new Blob([slice]).stream().pipeThrough(ds);
     var ab = await new Response(stream).arrayBuffer();
@@ -118,9 +127,9 @@
   /* 路径安全 + 白名单（照 AgentAtelierR 的规则） */
   function safeName(path) {
     var p = String(path || '').replace(/\\/g, '/');
-    if (p.startsWith('/') || p.indexOf(':') >= 0) throw new Error('ZIP 里有绝对路径');
+    if (p.startsWith('/') || p.indexOf(':') >= 0) throw crfErr('CRF_ABS_PATH', 'The ZIP contains an absolute path');
     var parts = p.split('/');
-    for (var i = 0; i < parts.length; i++) if (parts[i] === '..') throw new Error('ZIP 里有 .. 路径');
+    for (var i = 0; i < parts.length; i++) if (parts[i] === '..') throw crfErr('CRF_DOTDOT', 'The ZIP contains a ".." path');
     return parts[parts.length - 1];
   }
   var OK_EXT = /\.(atlas|png|skel|json)$/i;
@@ -147,33 +156,33 @@
   function validate(files) {
     var names = Object.keys(files);
     var atlases = names.filter(function (n) { return /\.atlas$/i.test(n); });
-    if (atlases.length !== 1) throw new Error('必须恰好 1 个 .atlas（单页图集）');
+    if (atlases.length !== 1) throw crfErr('CRF_NEED_ONE_ATLAS', 'Need exactly one .atlas file (single-page atlas)');
     var base = atlases[0].replace(/\.atlas$/i, '');
     ['png', 'skel', 'json'].forEach(function (ext) {
       var want = (ext === 'json') ? base + '_gesture.json' : base + '.' + ext;
-      if (!files[want]) throw new Error('缺少 ' + want);
+      if (!files[want]) throw crfErr('CRF_MISSING_FILE', 'Missing ' + want);
     });
     var atlasText = new TextDecoder().decode(files[base + '.atlas']);
     /* 单页：atlas 里声明贴图的行只能有一条，且必须与 .png 同名 */
     var pageLines = atlasText.split(/\r?\n/).filter(function (l) {
       return /\.png\s*$/i.test(l.trim());
     });
-    if (pageLines.length !== 1) throw new Error('只支持单页图集');
-    if (pageLines[0].trim() !== base + '.png') throw new Error('图集贴图名与文件名不一致');
+    if (pageLines.length !== 1) throw crfErr('CRF_MULTIPAGE', 'Only a single-page atlas is supported');
+    if (pageLines[0].trim() !== base + '.png') throw crfErr('CRF_ATLAS_NAME', 'The atlas page name does not match the .png file name');
 
     var declared = /^size:\s*(\d+)\s*,\s*(\d+)/m.exec(atlasText);
-    if (!declared) throw new Error('图集缺少 size 声明');
+    if (!declared) throw crfErr('CRF_NO_SIZE', 'The atlas has no size declaration');
     var png = pngSize(files[base + '.png']);
-    if (!png) throw new Error('贴图不是有效的 PNG');
+    if (!png) throw crfErr('CRF_BAD_PNG', 'The texture is not a valid PNG');
     if (png.w !== Number(declared[1]) || png.h !== Number(declared[2])) {
-      throw new Error('PNG 尺寸 ' + png.w + 'x' + png.h +
-                      ' 与图集声明 ' + declared[1] + 'x' + declared[2] + ' 不一致');
+      throw crfErr('CRF_SIZE_MISMATCH', 'PNG size ' + png.w + 'x' + png.h +
+                      ' does not match the atlas declaration ' + declared[1] + 'x' + declared[2]);
     }
-    if (!skeletonVersionOk(files[base + '.skel'])) throw new Error('只支持 Spine 4.2 的骨架');
+    if (!skeletonVersionOk(files[base + '.skel'])) throw crfErr('CRF_NOT_42', 'Only Spine 4.2 skeletons are supported');
     var gesture;
     try { gesture = JSON.parse(new TextDecoder().decode(files[base + '_gesture.json'])); }
-    catch (e) { throw new Error('动作表不是有效 JSON'); }
-    if (!gesture || !gesture.emotionalGesture) throw new Error('动作表缺少 emotionalGesture');
+    catch (e) { throw crfErr('CRF_BAD_GESTURE_JSON', 'The gesture table is not valid JSON'); }
+    if (!gesture || !gesture.emotionalGesture) throw crfErr('CRF_NO_EMOTIONAL', 'The gesture table has no emotionalGesture');
 
     /* id 用文件名前缀，非法字符丢掉；重名加后缀 */
     var id = base.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48) || 'imported';
@@ -201,7 +210,7 @@
         return input;
       }).then(function (buf) {
         var ab = (buf instanceof ArrayBuffer) ? buf : buf.buffer;
-        if (ab.byteLength > MAX_BYTES) throw new Error('ZIP 超过 64MB');
+        if (ab.byteLength > MAX_BYTES) throw crfErr('CRF_TOO_BIG', 'The ZIP is larger than 64MB');
         var zip = readZip(ab);
         /* 先按白名单收集，再逐条解压 */
         var picked = [];
@@ -210,13 +219,13 @@
           var name = safeName(e.name);
           if (!OK_EXT.test(name)) return;
           if (picked.some(function (p) { return p.name === name; })) {
-            throw new Error('ZIP 里有重名文件: ' + name);
+            throw crfErr('CRF_DUP', 'Duplicate file in the ZIP: ' + name);
           }
           total += e.size;
-          if (total > MAX_BYTES) throw new Error('展开后超过 64MB');
+          if (total > MAX_BYTES) throw crfErr('CRF_TOO_BIG', 'Unpacked size is larger than 64MB');
           picked.push({ name: name, entry: e });
         });
-        if (!picked.length) throw new Error('ZIP 里没有可用文件');
+        if (!picked.length) throw crfErr('CRF_EMPTY', 'The ZIP has no usable files');
         return Promise.all(picked.map(function (p) {
           return entryBytes(zip, p.entry).then(function (b) { return { name: p.name, bytes: b }; });
         }));

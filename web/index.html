@@ -172,11 +172,16 @@
 <section id="view-skin" class="view">
   <div class="view-head"><h2 data-i18n="skin.title">服装</h2>
     <div class="head-actions">
-      <button class="mini-btn" id="btn-crf-zip" title="导入服装 ZIP（atlas/png/skel/gesture 四件）">导入服装</button>
-      <button class="mini-btn" id="btn-crf-remove" title="移除最后导入的服装">移除导入</button>
+      <button class="mini-btn" id="btn-crf-zip" data-i18n="crf.import" data-i18n-title="crf.importTip" title="导入服装 ZIP（atlas/png/skel/gesture 四件）">导入服装</button>
+      <button class="mini-btn" id="btn-crf-remove" data-i18n="crf.remove" data-i18n-title="crf.removeTip" title="移除最后导入的服装">移除导入</button>
     </div>
   </div>
   <div id="skin-posture-hint" class="hint skin-hint"></div>
+  <details id="crf-help" class="hint skin-hint">
+    <summary data-i18n="crf.help.title">自带服装的格式</summary>
+    <p data-i18n="crf.help.plain"></p>
+    <p class="crf-help-tech" data-i18n="crf.help.tech"></p>
+  </details>
   <div id="skin-grid"></div>
   <input type="file" id="crf-file-zip" accept=".zip,application/zip" class="hidden">
 </section>

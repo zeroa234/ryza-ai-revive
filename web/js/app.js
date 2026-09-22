@@ -87,6 +87,12 @@
       (root || document).querySelectorAll('[data-i18n]').forEach(function (el) {
         el.textContent = I18n.t(el.getAttribute('data-i18n'));
       });
+      /* data-i18n-title sets the tooltip (title attr) rather than the text —
+         used where a button already shows an icon or short label but wants a
+         longer hover hint. */
+      (root || document).querySelectorAll('[data-i18n-title]').forEach(function (el) {
+        el.setAttribute('title', I18n.t(el.getAttribute('data-i18n-title')));
+      });
     },
 
     _syncPanelFrac: function () {
@@ -773,13 +779,25 @@
       /* 服装导入：ZIP 走 CrfStore（IndexedDB），失败只报错不崩 */
       var crfBtn = document.getElementById('btn-crf-zip');
       var crfFile = document.getElementById('crf-file-zip');
+      /* Map a CrfStore error to a translated line: prefer crf.err.<code>, and
+         fall back to the error's own English message when a code is missing
+         or has no translation yet. */
+      function crfErrText(e) {
+        var code = e && e.code;
+        if (code) {
+          var key = 'crf.err.' + code;
+          var s = T(key);
+          if (s && s !== key) return s;
+        }
+        return (e && e.message) || String(e);
+      }
       if (crfBtn && crfFile) {
         crfBtn.onclick = function () { crfFile.click(); };
         crfFile.onchange = function () {
           var f = crfFile.files && crfFile.files[0];
           crfFile.value = '';
           if (!f) return;
-          App.toast('导入中…');
+          App.toast(T('crf.importing'));
           CrfStore.importZip(f).then(function (v) {
             return CrfStore.get(v.id).then(function (rec) {
               var base = Avatar.skinsIndex || [];
@@ -787,10 +805,10 @@
               Avatar.skinsIndex = base;
               Config.set('state.skin', v.id);
               App.renderSkins();
-              App.toast('已导入：' + v.id);
+              App.toast(T('crf.imported') + v.id);
             });
           }).catch(function (e) {
-            App.toast('导入失败：' + e.message, true);
+            App.toast(crfErrText(e), true);
           });
         };
       }
@@ -798,15 +816,15 @@
       if (crfRm) {
         crfRm.onclick = function () {
           var list = CrfStore.list();
-          if (!list.length) { App.toast('没有导入的服装'); return; }
+          if (!list.length) { App.toast(T('crf.none')); return; }
           var last = list[list.length - 1];
           CrfStore.remove(last.id).then(function () {
             Avatar.skinsIndex = (Avatar.skinsIndex || []).filter(function (x) {
               return x.id !== last.id;
             });
             App.renderSkins();
-            App.toast('已移除：' + last.id);
-          }).catch(function (e) { App.toast('移除失败：' + e.message, true); });
+            App.toast(T('crf.removed') + last.id);
+          }).catch(function (e) { App.toast(crfErrText(e), true); });
         };
       }
       var peopleBtn = document.getElementById('btn-world-people');
