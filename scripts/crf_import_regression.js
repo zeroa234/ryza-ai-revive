@@ -21,9 +21,9 @@ const JS = path.join(ROOT, 'web/js');
 let fail = 0;
 function ok(cond, name) { if (cond) console.log('  PASS ' + name); else { fail++; console.log('  FAIL ' + name); } }
 function eq(a, b, name) { ok(a === b, name + ' (got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b) + ')'); }
-function throws(fn, re, name) {
+function throws(fn, code, name) {
   try { fn(); ok(false, name + '（本该抛错却通过了）'); }
-  catch (e) { ok(re.test(e.message), name + ' → ' + e.message); }
+  catch (e) { ok(e.code === code, name + ' → ' + (e.code || '(no code)') + ': ' + e.message); }
 }
 
 /* ------------------------------------------------------------- sandbox */
@@ -128,64 +128,64 @@ console.log('# 1. 正常包：解析 + 校验通过');
 
 console.log('\n# 2. ZIP 结构校验');
 {
-  throws(() => CrfStore.parseZip(new ArrayBuffer(64)), /不是有效的 ZIP/, '非 ZIP 被拒');
+  throws(() => CrfStore.parseZip(new ArrayBuffer(64)), 'CRF_BAD_ZIP', '非 ZIP 被拒');
   const many = {};
   for (let i = 0; i < 70; i++) many['f' + i + '.png'] = new Uint8Array(8);
   many[base + '.atlas'] = files[base + '.atlas'];
-  throws(() => CrfStore.parseZip(zip(many)), /条目过多/, '条目超过 64 被拒');
+  throws(() => CrfStore.parseZip(zip(many)), 'CRF_TOO_MANY', '条目超过 64 被拒');
 }
 
 console.log('\n# 3. 内容校验（逐条对应 AgentAtelierR 的规则）');
 {
-  throws(() => CrfStore.validate({}), /恰好 1 个 \.atlas/, '没有 atlas 被拒');
+  throws(() => CrfStore.validate({}), 'CRF_NEED_ONE_ATLAS', '没有 atlas 被拒');
   throws(() => CrfStore.validate({ 'a.atlas': new Uint8Array(1), 'b.atlas': new Uint8Array(1) }),
-    /恰好 1 个 \.atlas/, '两个 atlas（多页）被拒');
+    'CRF_NEED_ONE_ATLAS', '两个 atlas（多页）被拒');
 
   const noPng = Object.assign({}, files);
   delete noPng[base + '.png'];
-  throws(() => CrfStore.validate(noPng), /缺少 .*\.png/, '缺贴图被拒');
+  throws(() => CrfStore.validate(noPng), 'CRF_MISSING_FILE', '缺贴图被拒');
 
   const noSkel = Object.assign({}, files);
   delete noSkel[base + '.skel'];
-  throws(() => CrfStore.validate(noSkel), /缺少 .*\.skel/, '缺骨架被拒');
+  throws(() => CrfStore.validate(noSkel), 'CRF_MISSING_FILE', '缺骨架被拒');
 
   const noGesture = Object.assign({}, files);
   delete noGesture[base + '_gesture.json'];
-  throws(() => CrfStore.validate(noGesture), /缺少 .*_gesture\.json/, '缺动作表被拒');
+  throws(() => CrfStore.validate(noGesture), 'CRF_MISSING_FILE', '缺动作表被拒');
 
   const badAtlasName = Object.assign({}, files);
   badAtlasName[base + '.atlas'] = new TextEncoder().encode(
     files[base + '.atlas'] ? new TextDecoder().decode(files[base + '.atlas']).replace(base + '.png', 'other.png') : '');
-  throws(() => CrfStore.validate(badAtlasName), /贴图名与文件名不一致/, '图集贴图名不匹配被拒');
+  throws(() => CrfStore.validate(badAtlasName), 'CRF_ATLAS_NAME', '图集贴图名不匹配被拒');
 
   const badPng = Object.assign({}, files);
   badPng[base + '.png'] = new Uint8Array(32);   /* 不是 PNG */
-  throws(() => CrfStore.validate(badPng), /不是有效的 PNG/, '贴图不是 PNG 被拒');
+  throws(() => CrfStore.validate(badPng), 'CRF_BAD_PNG', '贴图不是 PNG 被拒');
 
   const badSkel = Object.assign({}, files);
   const sk = new Uint8Array(files[base + '.skel']);
   sk[8] = 4; sk[9] = '3'.charCodeAt(0);         /* 改成 3.8.x */
   badSkel[base + '.skel'] = sk;
-  throws(() => CrfStore.validate(badSkel), /只支持 Spine 4.2/, '非 4.2 骨架被拒');
+  throws(() => CrfStore.validate(badSkel), 'CRF_NOT_42', '非 4.2 骨架被拒');
 
   const badGesture = Object.assign({}, files);
   badGesture[base + '_gesture.json'] = new TextEncoder().encode('{}');
-  throws(() => CrfStore.validate(badGesture), /缺少 emotionalGesture/, '动作表结构不对被拒');
+  throws(() => CrfStore.validate(badGesture), 'CRF_NO_EMOTIONAL', '动作表结构不对被拒');
 
   /* PNG 尺寸必须与图集声明一致：把图集 size 改掉 */
   const atlasText = new TextDecoder().decode(files[base + '.atlas']);
   const wrongSize = atlasText.replace(/^size:\s*\d+\s*,\s*\d+/m, 'size: 99,99');
   const badSize = Object.assign({}, files);
   badSize[base + '.atlas'] = new TextEncoder().encode(wrongSize);
-  throws(() => CrfStore.validate(badSize), /与图集声明 .*不一致/, 'PNG 尺寸与图集不一致被拒');
+  throws(() => CrfStore.validate(badSize), 'CRF_SIZE_MISMATCH', 'PNG 尺寸与图集不一致被拒');
 }
 
 console.log('\n# 4. 路径安全');
 {
   eq(CrfStore.safeName('sub/dir/x.png'), 'x.png', '子目录只取文件名');
-  throws(() => CrfStore.safeName('/abs/x.png'), /绝对路径/, '绝对路径被拒');
-  throws(() => CrfStore.safeName('C:/x.png'), /绝对路径/, '盘符路径被拒');
-  throws(() => CrfStore.safeName('a/../../x.png'), /\.\. 路径/, '.. 路径被拒');
+  throws(() => CrfStore.safeName('/abs/x.png'), 'CRF_ABS_PATH', '绝对路径被拒');
+  throws(() => CrfStore.safeName('C:/x.png'), 'CRF_ABS_PATH', '盘符路径被拒');
+  throws(() => CrfStore.safeName('a/../../x.png'), 'CRF_DOTDOT', '.. 路径被拒');
 }
 
 console.log('\n# 5. 骨架版本判定（正例）');

@@ -79,12 +79,22 @@
   function persona() {
     var c = Config.section('chara'), p = Config.section('profile');
     var lines = [];
-    lines.push('あなたは『ライザ』（ライザリン・シュタウト）です。');
-    lines.push('');
-    lines.push('## キャラクター');
-    lines.push('- 一人称は「あたし」。相手は「' + (c.callMe || '君') + '」と呼ぶ。');
-    lines.push('- 明るく前向きで、少しおっちょこちょいな錬金術士。');
-    lines.push('- 好奇心旺盛で調合と冒険が好き。困っている人を放っておけない。');
+    /* A non-empty override replaces the built-in Ryza character block only.
+       Everything after this (chara/profile fields, extra notes) is still
+       appended, and the protocol/language/scene rules live in staticPrompt +
+       dynamicPrompt — so a custom persona can restyle who she is without
+       reaching the tag line or <state> the avatar and RPG depend on. */
+    var override = (c.systemPromptOverride || '').trim();
+    if (override) {
+      lines.push(override);
+    } else {
+      lines.push('あなたは『ライザ』（ライザリン・シュタウト）です。');
+      lines.push('');
+      lines.push('## キャラクター');
+      lines.push('- 一人称は「あたし」。相手は「' + (c.callMe || '君') + '」と呼ぶ。');
+      lines.push('- 明るく前向きで、少しおっちょこちょいな錬金術士。');
+      lines.push('- 好奇心旺盛で調合と冒険が好き。困っている人を放っておけない。');
+    }
     if (c.personality) lines.push('- 性格：' + c.personality);
     if (c.likes) lines.push('- 好きなもの：' + c.likes);
     if (c.dislikes) lines.push('- 苦手なもの：' + c.dislikes);
